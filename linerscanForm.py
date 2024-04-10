@@ -32,12 +32,12 @@ class linerscan(QWidget, Ui_Form1):
         self.setupUi(self)
 
         self.f0 = 0.75
-        self.x_start = -5
-        self.x_end = 5
-        self.x_step = 5
+        self.x_start = 0
+        self.x_end = 4
+        self.x_step = 1
         self.y_start = 0
-        self.y_end = 5
-        self.y_step = 5
+        self.y_end = 3
+        self.y_step = 1
         self.x_speed = 2.0
         self.y_speed = 2.0
         self.axisGroup = [3,4]
@@ -48,7 +48,7 @@ class linerscan(QWidget, Ui_Form1):
         self.ave = 10
         self.delay = "10.168.1.16"
         self.motion = "10.168.1.11"
-        self.device = "Dev2"
+        self.device = "Dev3"
         self.magunit = 0
         self.phaunit = 0
         self.IsOpenExtClock = False
@@ -64,7 +64,7 @@ class linerscan(QWidget, Ui_Form1):
         self.comboDevice.addItems(["Dev1", "Dev2", "Dev3", "Dev4"])
         self.comboDelay.setCurrentIndex(1)
         self.comboMotion.setCurrentIndex(1)
-        self.comboDevice.setCurrentIndex(1)
+        self.comboDevice.setCurrentIndex(2)
         self.dspinLength.setRange(0, 400 - self.dspinOffset.value())
         self.dspinLength.setValue(self.length)
         self.dspinOffset.setRange(-400, 400)
@@ -549,8 +549,10 @@ class linerscan(QWidget, Ui_Form1):
         self.axis[0].cancel()
         self.axis[1].cancel()
         self.ProgressBar.setValue(0)
-        self.home()
-        STOP = False
+        self.CardWidget_2.deleteLater()
+        self.CardWidget_2 = CardWidget(self.page_10)
+        self.CardWidget_2.setObjectName("CardWidget_2")
+        self.verticalLayout_12.addWidget(self.CardWidget_2)
         self.canvas.ax1.clear()
         self.canvas1.ax1.clear()
         self.canvas2.ax1.clear()
@@ -561,7 +563,9 @@ class linerscan(QWidget, Ui_Form1):
         self.canvas.draw()
         self.canvas1.draw()
         self.canvas2.draw()
+        STOP = False
         self.btnStop.setEnabled(False)
+        self.btnHome.setEnabled(True)
 
     def saveResult(self):
         if self.result:
@@ -622,6 +626,7 @@ class linerscan(QWidget, Ui_Form1):
     def home(self):
         self.axis[0].move(0)
         self.axis[1].move(0)
+        # self.createTopRightInfoBar('warning','warning','Please check the axis')
         self.ProgressBar.setValue(0)
         self.CardWidget_2.deleteLater()
         self.CardWidget_2 = CardWidget(self.page_10)

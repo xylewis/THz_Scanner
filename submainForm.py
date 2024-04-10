@@ -34,8 +34,8 @@ class submain(QWidget, Ui_Form):
         self.offset = 0
         self.iter = 1
         self.ave = 10
-        self.delay = "127.0.0.1"
-        self.motion = "127.0.0.1"
+        self.delay = "10.168.1.16"
+        self.motion = "10.168.1.11"
         self.magunit = 0
         self.phaunit = 0
         self.IsOpenExtClock = False
@@ -48,6 +48,8 @@ class submain(QWidget, Ui_Form):
         self.togbtnClock.setChecked(False)
         self.comboPort.addItems(["127.0.0.1", "10.168.1.16"])
         self.comboDev.addItems(["127.0.0.1", "10.168.1.11"])
+        self.comboPort.setCurrentIndex(1)
+        self.comboDev.setCurrentIndex(1)
         self.dspinLength.setRange(0, 400 - self.dspinOffset.value())
         self.dspinLength.setValue(self.length)
         self.dspinOffset.setRange(-400, 400)
@@ -561,6 +563,9 @@ class Worker(QRunnable):
             self.signals.progress2.emit(self.progress_total)
             self.signals.youCanStop.emit()
             if STOP is not True:
+
+                time.sleep(0.2)
+
                 self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock)
                 self.data.mat.append(self.data_buffer)
                 self.data.fft()
