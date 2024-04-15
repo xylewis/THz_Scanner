@@ -1,4 +1,5 @@
 # coding:utf-8
+import ctypes
 import sys
 from PyQt5.QtCore import Qt
 from PyQt5.QtGui import QIcon
@@ -26,9 +27,13 @@ class test(SplitFluentWindow):
 
         # 调用api
         hWnd = HWND(int(self.winId()))  # 不能直接HWND(self.winId()),不然会报错
-        # areoDll = cdll.LoadLibrary('D:\\FinancialMedia\\CodeCraft\\PYCHARM\\NeoTHz-py312\\Aero\\aeroDll.dll')
+
+        dll_dir = "./dll"
+        os.environ["PATH"] += ";" +dll_dir
+        areoDll = ctypes.CDLL("aeroDll.dll",winmode=0)
+        # areoDll = cdll.LoadLibrary('Aero/aeroDll.dll')
         # areoDll = WinDLL(os.path.join(os.path.dirname(__file__), 'aeroDll.dll'))
-        # areoDll.setBlur(hWnd)
+        areoDll.setBlur(hWnd)
 
         self.submain = submain(self)
         self.linerscan = linerscan(self)

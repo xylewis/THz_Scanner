@@ -545,7 +545,7 @@ class Worker(QRunnable):
         global STOP
         if self.delay == "127.0.0.1":
             delay = DelayControl(self.delay, 5002)
-            acquisition = DataCollection("Dev2")
+            acquisition = DataCollection("Dev3")
         else:
             delay = DelayControl(self.delay)
             acquisition = DataCollection("Dev3")

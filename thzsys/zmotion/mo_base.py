@@ -1,8 +1,12 @@
 from abc import ABCMeta
 from ctypes import *
+import ctypes
 import os.path
 
-zauxdll = WinDLL(os.path.join(os.path.dirname(__file__), 'zauxdll.dll'))
+# zauxdll = WinDLL(os.path.join(os.path.dirname(__file__), 'zauxdll.dll'))
+dll_dir = "./dll"
+os.environ["PATH"] += ";" + dll_dir
+zauxdll = ctypes.CDLL("zauxdll.dll",winmode=0)
 # zauxdll =cdll.LoadLibrary("./zauxdll.dll")
 
 class Base(metaclass=ABCMeta):
