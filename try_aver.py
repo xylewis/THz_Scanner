@@ -6,8 +6,8 @@ from thzsys.zmotion import Zmotion, Axis
 
 async def task_init(delay: DelayControl, acquisition: DataCollection):
 
-    acquisition.channel = 1
-    # acquisition.terminal = 3
+    acquisition.channel = 2
+    acquisition.terminal = 3
     acquisition.edge = Edge.RISING
     acquisition.mode = AcquisitionType.FINITE
     acquisition.coupling = TerminalConfiguration.DEFAULT
@@ -47,31 +47,32 @@ if __name__ == '__main__':
     import numpy as np
     import time
 
-    delay = DelayControl("127.0.0.1", 5002)
-    acquisition = DataCollection("Dev2")
+    delay = DelayControl("10.168.1.16")
+    acquisition = DataCollection("Dev3")
 
-    delay.offset = 0  # Sampling Offset (ps)
-    delay.length = 70  # Sampling Length (ps)
+    delay.offset = -390  # Sampling Offset (ps)
+    delay.length = 100  # Sampling Length (ps)
     delay.interval = 0.02  # Sampling Interval (ps)
-    delay.iteration = 1  # Iteration Average
+    delay.iteration = 2  # Iteration Average
 
     ts = [x * delay.interval for x in range(int(delay.length / delay.interval))]
-    raw_data = main_task()
-    plt.plot(ts, raw_data)
-    plt.show()
-
-    # plt.ion()
-    #
-    # for i in range(10):
-    #     raw_data = main_task()
-    #
-    #     plt.clf()
-    #     plt.plot(ts, raw_data)
-    #     plt.title('[Scan: %d | Peak to Peak: %.2f Vpp]' % (i + 1, np.max(raw_data) - np.min(raw_data)))
-    #     plt.xlabel('Time (ps)')
-    #     plt.ylabel('Voltage (V)')
-    #     plt.tight_layout()
-    #     plt.pause(.1)
-    #
-    # plt.ioff()
+    # raw_data = main_task()
+    # plt.plot(ts, raw_data)
     # plt.show()
+
+    plt.ion()
+
+    for i in range(300):
+        raw_data = main_task()
+
+        plt.clf()
+        plt.plot(ts, raw_data)
+        plt.title('[Scan: %d | Peak to Peak: %.2f Vpp]' % (i + 1, np.max(raw_data) - np.min(raw_data)))
+        plt.xlabel('Time (ps)')
+        plt.ylabel('Voltage (V)')
+        plt.tight_layout()
+        time.sleep(0.2)
+        plt.pause(.1)
+
+    plt.ioff()
+    plt.show()

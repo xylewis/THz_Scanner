@@ -98,6 +98,9 @@ class linerscan(QWidget, Ui_Form1):
         self.linePath.setEnabled(False)
         self.btnSelectPath.setEnabled(False)
         self.btnOpenPath.setEnabled(False)
+        self.btnLoad.setVisible(False)
+        self.btnExit.setVisible(False)
+
 
         self.canvas = self.widget.canvas
         self.canvas.ax1 = self.canvas.fig.add_subplot(111)
@@ -528,6 +531,20 @@ class linerscan(QWidget, Ui_Form1):
         self.canvas2.fig.tight_layout()
         self.canvas2.draw()
 
+        if self.xRange * self.yRange == len(data.mat):
+            self.result = data.mat
+            if self.bakPath == os.path.abspath('.') + '\\.temp':
+                np.savetxt(
+                    os.path.abspath('.') + '\\.temp' + '/' + time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt",
+                    data.mat,
+                    fmt="%.6f", delimiter='\t')
+            else:
+                np.savetxt(
+                    self.bakPath + '/' + time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt",
+                    data.mat,
+                    fmt="%.6f", delimiter='\t')
+
+
     def pageSetting(self):
         self.stackedWidget.setCurrentIndex(0)
 
@@ -569,22 +586,21 @@ class linerscan(QWidget, Ui_Form1):
 
     def saveResult(self):
         if self.result:
-            t = self.result[0]
-            ts = self.result[1]
-            f = self.result[2]
-            fs = self.result[3]
-            fp = [0 for i in range(len(t))]
-            fsp = [0 for i in range(len(t))]
-            fp[0:len(f)] = f
-            fsp[0:len(fs)] = fs
-
-            Sig = np.array([t, ts, fp, fsp])
+            # t = self.result[0]
+            # ts = self.result[1]
+            # f = self.result[2]
+            # fs = self.result[3]
+            # fp = [0 for i in range(len(t))]
+            # fsp = [0 for i in range(len(t))]
+            # fp[0:len(f)] = f
+            # fsp[0:len(fs)] = fs
+            # Sig = np.array([t, ts, fp, fsp])
+            Sig = np.array(self.result)
             filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", os.getcwd())
-            np.savetxt(filedir + '/yourResult.txt', Sig, fmt='%.6f', delimiter=' ')
+            np.savetxt(filedir + '/yourResult.txt', Sig, fmt='%.6f', delimiter='\t')
         else:
-            QMessageBox.information(self, "提示", "请先执行扫描" + "\r\n"
-                                    + "(>_<)" + "\r\n"
-                                    + "请等待扫描完成")
+            self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
+
 
     def loadResult(self):
         fileName, _ = QFileDialog.getOpenFileName(self, "选取文件", os.getcwd(),
@@ -714,8 +730,8 @@ class linerscan(QWidget, Ui_Form1):
         self.f0 = self.dspinFreq.value()
 
     def OpenPath(self):
-        self.bakPath = self.bakPath.replace('/', '\\')
-        os.system('copy ' + os.path.abspath('.') + '\\.temp ' + self.bakPath)
+        # self.bakPath = self.bakPath.replace('/', '\\')
+        # os.system('copy ' + os.path.abspath('.') + '\\.temp ' + self.bakPath)
         os.startfile(self.bakPath)
 
     def SelectPath(self):

@@ -7,7 +7,7 @@ from PyQt5.QtCore import Qt, pyqtSignal, QUrl
 from PyQt5.QtWidgets import QWidget, QApplication, QMainWindow, QVBoxLayout, QStackedWidget, QLabel, \
     QFileDialog, QMessageBox
 from qfluentwidgets import FluentIcon as FIF, Pivot, qrouter, SegmentedWidget, PivotItem, PushButton, setTheme, Theme, \
-    FlyoutView, Flyout
+    FlyoutView, Flyout, InfoBar, InfoBarPosition
 
 from dataplot import DataPlot
 from ui_submain import Ui_Form
@@ -64,6 +64,8 @@ class submain(QWidget, Ui_Form):
         self.ProgressBar.setValue(0)
         self.btnStop.setEnabled(False)
         self.linePath.setText(self.bakPath)
+        self.btnLoad.setVisible(False)
+        self.btnExit.setVisible(False)
         self.threadpool = QThreadPool()
 
         self.ProgressBar.setVisible(True)
@@ -201,6 +203,48 @@ class submain(QWidget, Ui_Form):
             # self.canvas2.ax1.patch.set_facecolor('white')
             # self.canvas2.draw()
 
+    def createTopRightInfoBar(self, infoClass, title, text):
+        if infoClass == 'warning':
+            InfoBar.warning(
+                title=self.tr(title),
+                content=self.tr(text),
+                orient=Qt.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=2000,
+                parent=self
+            )
+        elif infoClass == 'error':
+            InfoBar.error(
+                title=self.tr(title),
+                content=self.tr(text),
+                orient=Qt.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=2000,
+                parent=self
+            )
+        elif infoClass == 'success':
+            InfoBar.success(
+                title=self.tr(title),
+                content=self.tr(text),
+                orient=Qt.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=2000,
+                parent=self
+            )
+        elif infoClass == 'info':
+            InfoBar.info(
+                title=self.tr(title),
+                content=self.tr(text),
+                orient=Qt.Horizontal,
+                isClosable=True,
+                position=InfoBarPosition.TOP_RIGHT,
+                duration=2000,
+                parent=self
+            )
+
     def getResult(self, result):
         self.result = result
 
@@ -288,6 +332,18 @@ class submain(QWidget, Ui_Form):
         self.canvas1.draw()
         self.canvas2.fig.tight_layout()
         self.canvas2.draw()
+        if self.iter == len(data.mat):
+            self.result = data.mat
+            if self.bakPath == os.path.abspath('.') + '\\.temp':
+                np.savetxt(
+                    os.path.abspath('.') + '\\.temp' + '/' + time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt",
+                    data.mat,
+                    fmt="%.6f", delimiter='\t')
+            else:
+                np.savetxt(
+                    self.bakPath + '/' + time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt",
+                    data.mat,
+                    fmt="%.6f", delimiter='\t')
 
     def pageSetting(self):
         self.stackedWidget.setCurrentIndex(0)
@@ -321,22 +377,20 @@ class submain(QWidget, Ui_Form):
 
     def saveResult(self):
         if self.result:
-            t = self.result[0]
-            ts = self.result[1]
-            f = self.result[2]
-            fs = self.result[3]
-            fp = [0 for i in range(len(t))]
-            fsp = [0 for i in range(len(t))]
-            fp[0:len(f)] = f
-            fsp[0:len(fs)] = fs
-
-            Sig = np.array([t, ts, fp, fsp])
+            # t = self.result[0]
+            # ts = self.result[1]
+            # f = self.result[2]
+            # fs = self.result[3]
+            # fp = [0 for i in range(len(t))]
+            # fsp = [0 for i in range(len(t))]
+            # fp[0:len(f)] = f
+            # fsp[0:len(fs)] = fs
+            # Sig = np.array([t, ts, fp, fsp])
+            Sig = np.array(self.result)
             filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", os.getcwd())
-            np.savetxt(filedir + '/yourResult.txt', Sig, fmt='%.6f', delimiter=' ')
+            np.savetxt(filedir + '/yourResult.txt', Sig, fmt='%.6f', delimiter='\t')
         else:
-            QMessageBox.information(self, "提示", "请先执行扫描" + "\r\n"
-                                    + "(>_<)" + "\r\n"
-                                    + "请等待扫描完成")
+            self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
 
     def loadResult(self):
         fileName, _ = QFileDialog.getOpenFileName(self, "选取文件", os.getcwd(),
@@ -344,23 +398,30 @@ class submain(QWidget, Ui_Form):
         if fileName == '':
             pass
         else:
-            Sig = np.loadtxt(fileName, delimiter=" ")
-            self.canvas.ax1.clear()
-            self.canvas.ax1.plot(Sig[0], Sig[1])
-            # self.canvas.fig.suptitle("T-Domain")
-            # self.canvas.fig.supxlabel("Time (ps)")
-            # self.canvas.fig.supylabel("Voltage (V)")
-            self.canvas.fig.tight_layout()
-            self.canvas.draw()
+            Sig = np.loadtxt(fileName, delimiter='\t')
 
-            self.canvas1.ax1.clear()
-            self.canvas1.ax1.plot(Sig[2][0:np.argwhere(Sig[2] == 0)[1][0]],
-                                  Sig[3][0:np.argwhere(Sig[3] == 0)[0][0]])
-            # self.canvas.fig.suptitle("T-Domain")
-            # self.canvas.fig.supxlabel("Time (ps)")
-            # self.canvas.fig.supylabel("Voltage (V)")
-            self.canvas1.fig.tight_layout()
-            self.canvas1.draw()
+            # data = DataPlot(0.02, n=8192)
+            # data.t = self.length
+            # data.f = 10
+            # data.mat = Sig.tolist()
+            # data.fft()
+            # print("d")
+            # self.canvas.ax1.clear()
+            # self.canvas.ax1.plot(data.t, Sig[-1])
+            # # self.canvas.fig.suptitle("T-Domain")
+            # # self.canvas.fig.supxlabel("Time (ps)")
+            # # self.canvas.fig.supylabel("Voltage (V)")
+            # self.canvas.fig.tight_layout()
+            # self.canvas.draw()
+
+            # self.canvas1.ax1.clear()
+            # self.canvas1.ax1.plot(Sig[2][0:np.argwhere(Sig[2] == 0)[1][0]],
+            #                       Sig[3][0:np.argwhere(Sig[3] == 0)[0][0]])
+            # # self.canvas.fig.suptitle("T-Domain")
+            # # self.canvas.fig.supxlabel("Time (ps)")
+            # # self.canvas.fig.supylabel("Voltage (V)")
+            # self.canvas1.fig.tight_layout()
+            # self.canvas1.draw()
 
     def ipChange(self):
         self.delay = self.comboPort.currentText()
@@ -442,8 +503,8 @@ class submain(QWidget, Ui_Form):
             pass
 
     def OpenPath(self):
-        self.bakPath = self.bakPath.replace('/', '\\')
-        os.system('copy ' + os.path.abspath('.') + '\\.temp ' + self.bakPath)
+        # self.bakPath = self.bakPath.replace('/', '\\')
+        # os.system('copy ' + os.path.abspath('.') + '\\.temp ' + self.bakPath)
         os.startfile(self.bakPath)
 
     def SelectPath(self):
@@ -558,24 +619,20 @@ class Worker(QRunnable):
         self.data.t = self.length
         self.data.f = 10
 
-
         for n in range(0, self.iter):
             self.signals.progress2.emit(self.progress_total)
             self.signals.youCanStop.emit()
             if STOP is not True:
 
                 time.sleep(0.2)
-
+                print(self.data.mat)
                 self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock)
                 self.data.mat.append(self.data_buffer)
                 self.data.fft()
 
                 self.signals.render_iter.emit(self.data)
                 self.signals.progress.emit(self.progress_count)
-                # if self.progress_total > 100 and self.progress_count % 10 == 0:
-                #     np.savetxt(os.path.abspath('.') + '\\.temp' + f"/{self.progress_count / 10}.txt",
-                #                self.data_buffer,
-                #                fmt="%.6f")
+
                 self.progress_count += self.ave
             else:
                 break
@@ -586,6 +643,7 @@ class Worker(QRunnable):
                 # self.signals.render_iter.emit(self.data)
                 # self.result = [scan.data.t, scan.data.mat[-1][0:len(scan.data.t)],
                 #                scan.data.f, scan.data.amp[-1][0:len(scan.data.f)]]
+                # self.result.append(self.data_buffer)
                 # self.signals.result.emit(self.result)
                 self.read_count = 1
                 # self.data_buffer = []
@@ -642,7 +700,6 @@ class Worker(QRunnable):
 
 
 async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtClock):
-
     acquisition.channel = 1
     if IsOpenExtClock:
         acquisition.terminal = 3
@@ -653,7 +710,6 @@ async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtC
 
 
 async def task_exec(delay: DelayControl, acquisition: DataCollection):
-
     del acquisition.buffer
     num_of_sample = int(delay.length / delay.interval)
     acquisition.config(num_of_sample * delay.iteration, num_of_sample)

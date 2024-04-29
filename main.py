@@ -30,23 +30,23 @@ class test(SplitFluentWindow):
 
         dll_dir = "./dll"
         os.environ["PATH"] += ";" +dll_dir
-        areoDll = ctypes.CDLL("aeroDll.dll",winmode=0)
+        # areoDll = ctypes.CDLL("aeroDll.dll",winmode=0)
         # areoDll = cdll.LoadLibrary('Aero/aeroDll.dll')
         # areoDll = WinDLL(os.path.join(os.path.dirname(__file__), 'aeroDll.dll'))
-        areoDll.setBlur(hWnd)
+        # areoDll.setBlur(hWnd)
 
         self.submain = submain(self)
         self.linerscan = linerscan(self)
         self.addSubInterface(self.submain, FluentIcon.ASTERISK, 'singleScan')
         self.addSubInterface(self.linerscan, FluentIcon.MOVE, 'linerScan')
 
-    def paintEvent(self, e):
-        """ 绘制背景 """
-        painter = QPainter(self)
-        painter.setRenderHint(QPainter.Antialiasing)
-        painter.setPen(Qt.NoPen)
-        painter.setBrush(self.bgColor)
-        painter.drawRoundedRect(self.rect(), 10, 10)
+    # def paintEvent(self, e):
+    #     """ 绘制背景 """
+    #     painter = QPainter(self)
+    #     painter.setRenderHint(QPainter.Antialiasing)
+    #     painter.setPen(Qt.NoPen)
+    #     painter.setBrush(self.bgColor)
+    #     painter.drawRoundedRect(self.rect(), 10, 10)
 
 
 if __name__ == '__main__':
