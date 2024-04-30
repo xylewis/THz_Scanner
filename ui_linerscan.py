@@ -10,7 +10,7 @@
 
 from PyQt5 import QtCore, QtGui, QtWidgets
 from mplwidget import mplwidget
-from qfluentwidgets import CaptionLabel, CardWidget, EditableComboBox, CompactDoubleSpinBox, CompactSpinBox, DoubleSpinBox, IndeterminateProgressBar, LineEdit, PrimaryPushButton, ProgressBar, ProgressRing, PushButton, SegmentedWidget, SimpleCardWidget, SpinBox, SwitchButton, ToggleButton
+from qfluentwidgets import CaptionLabel, CardWidget, CompactDoubleSpinBox, CompactSpinBox, DoubleSpinBox, EditableComboBox, IndeterminateProgressBar, LineEdit, PrimaryPushButton, ProgressBar, ProgressRing, PushButton, SegmentedWidget, SimpleCardWidget, SpinBox, SwitchButton, ToggleButton
 
 
 class Ui_Form1(object):
@@ -379,12 +379,25 @@ class Ui_Form1(object):
         self.verticalLayout_10.addWidget(self.widget_4)
         self.verticalLayout_13.addWidget(self.SimpleCardWidget_5)
         self.stackedWidget_2.addWidget(self.page_11)
+        self.page_12 = QtWidgets.QWidget()
+        self.page_12.setObjectName("page_12")
+        self.verticalLayout_11 = QtWidgets.QVBoxLayout(self.page_12)
+        self.verticalLayout_11.setObjectName("verticalLayout_11")
+        self.SimpleCardWidget_6 = SimpleCardWidget(self.page_12)
+        self.SimpleCardWidget_6.setObjectName("SimpleCardWidget_6")
+        self.verticalLayout_14 = QtWidgets.QVBoxLayout(self.SimpleCardWidget_6)
+        self.verticalLayout_14.setObjectName("verticalLayout_14")
+        self.widget_5 = mplwidget(self.SimpleCardWidget_6)
+        self.widget_5.setObjectName("widget_5")
+        self.verticalLayout_14.addWidget(self.widget_5)
+        self.verticalLayout_11.addWidget(self.SimpleCardWidget_6)
+        self.stackedWidget_2.addWidget(self.page_12)
         self.verticalLayout.addWidget(self.stackedWidget_2)
         self.horizontalLayout.addLayout(self.verticalLayout)
 
         self.retranslateUi(Form1)
         self.stackedWidget.setCurrentIndex(2)
-        self.stackedWidget_2.setCurrentIndex(2)
+        self.stackedWidget_2.setCurrentIndex(3)
         QtCore.QMetaObject.connectSlotsByName(Form1)
 
     def retranslateUi(self, Form1):

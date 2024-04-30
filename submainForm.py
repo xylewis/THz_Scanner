@@ -30,6 +30,10 @@ class submain(QWidget, Ui_Form):
         super().__init__(parent=parent)
         self.setupUi(self)
 
+        self.lastx = 0  # 获取鼠标按下时的坐标X
+        self.lasty = 0  # 获取鼠标按下时的坐标Y
+        self.press = False
+
         self.length = 70
         self.offset = 0
         self.iter = 1
@@ -103,6 +107,18 @@ class submain(QWidget, Ui_Form):
         self.canvas2.fig.patch.set_facecolor("None")
         self.canvas2.ax1.patch.set_alpha(0)
         self.canvas2.setStyleSheet("background-color:transparent;")
+        self.canvas.mpl_connect("button_press_event", self.on_press)
+        self.canvas.mpl_connect("button_release_event", self.on_release)
+        self.canvas.mpl_connect("motion_notify_event", self.on_move)
+        self.canvas.mpl_connect('scroll_event', self.call_back)
+        self.canvas1.mpl_connect("button_press_event", self.on_press1)
+        self.canvas1.mpl_connect("button_release_event", self.on_release1)
+        self.canvas1.mpl_connect("motion_notify_event", self.on_move1)
+        self.canvas1.mpl_connect('scroll_event', self.call_back1)
+        self.canvas2.mpl_connect("button_press_event", self.on_press2)
+        self.canvas2.mpl_connect("button_release_event", self.on_release2)
+        self.canvas2.mpl_connect("motion_notify_event", self.on_move2)
+        self.canvas2.mpl_connect('scroll_event', self.call_back2)
 
         self.segSetting = PivotItem('Setting')
         self.segOperation = PivotItem('Operation')
@@ -135,10 +151,6 @@ class submain(QWidget, Ui_Form):
         self.comboDev.currentIndexChanged.connect(self.ipChange)
         self.togbtnClock.clicked.connect(self.clockEnable)
         self.SwitchButton.checkedChanged.connect(self.themeChange)
-
-        # self.browser = QWebEngineView()
-        # self.horizontalLayout_2.addWidget(self.browser)
-        # self.verticalLayout_3.addWidget(PivotInterface(self))
 
         self.btnStart.setIcon(FIF.POWER_BUTTON)
 
@@ -311,18 +323,22 @@ class submain(QWidget, Ui_Form):
 
         self.canvas.ax1.plot(data.t, data.mat[-1])
         self.canvas.fig.suptitle('[Peak to Peak: %.2f Vpp]' % (np.max(data.mat[-1]) - np.min(data.mat[-1])))
-
+        print(len(data.f[0:500]))
         if self.swMag.isChecked():
             self.canvas1.ax1.plot(data.f, 10 ** (data.amp[-1][0:len(data.f)] / 20))
-            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 11, 5))
+            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
         else:
             self.canvas1.ax1.plot(data.f, data.amp[-1][0:len(data.f)])
-            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 11, 5))
+            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
 
         if self.swPha.isChecked():
             self.canvas2.ax1.plot(data.f, data.pha[-1][0:len(data.f)] / 180 * np.pi)
+            self.canvas2.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
+
         else:
             self.canvas2.ax1.plot(data.f, data.pha[-1][0:len(data.f)])
+            self.canvas2.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
+
         # self.canvas1.fig.suptitle("F-Domain")
         # self.canvas1.fig.supxlabel("Frequency (THz)")
         # self.canvas1.fig.supylabel("Magnitude (dB)")
@@ -562,6 +578,132 @@ class submain(QWidget, Ui_Form):
         w = Flyout.make(view, self.btnReset, self)
         view.closed.connect(w.close)
 
+    def on_press(self, event):
+        if event.inaxes:  # 判断鼠标是否在axes内
+            if event.button == 1:  # 判断按下的是否为鼠标左键1（右键是3）
+                self.press = True
+                self.lastx = event.xdata  # 获取鼠标按下时的坐标X
+                self.lasty = event.ydata  # 获取鼠标按下时的坐标Y
+    def on_move(self, event):
+        axtemp = event.inaxes
+        if axtemp:
+            if self.press:  # 按下状态
+                # 计算新的坐标原点并移动
+                # 获取当前最新鼠标坐标与按下时坐标的差值
+                x = event.xdata - self.lastx
+                y = event.ydata - self.lasty
+                # 获取当前原点和最大点的4个位置
+                x_min, x_max = axtemp.get_xlim()
+                y_min, y_max = axtemp.get_ylim()
+
+                x_min = x_min - x
+                x_max = x_max - x
+                y_min = y_min - y
+                y_max = y_max - y
+
+                axtemp.set_xlim(x_min, x_max)
+                axtemp.set_ylim(y_min, y_max)
+                self.canvas.draw_idle()  # 绘图动作实时反映在图像上
+    def on_release(self, event):
+        if self.press:
+            self.press = False  # 鼠标松开，结束移
+    def call_back(self, event):
+        axtemp = event.inaxes
+        x_min, x_max = axtemp.get_xlim()
+        y_min, y_max = axtemp.get_ylim()
+        xfanwei = (x_max - x_min) / 10
+        yfanwei = (y_max - y_min) / 10
+        if event.button == 'up':
+            axtemp.set(xlim=(x_min + xfanwei, x_max - xfanwei))
+            axtemp.set(ylim=(y_min + yfanwei, y_max - yfanwei))
+        elif event.button == 'down':
+            axtemp.set(xlim=(x_min - xfanwei, x_max + xfanwei))
+            axtemp.set(ylim=(y_min - yfanwei, y_max + yfanwei))
+        self.canvas.draw_idle()  # 绘图动作实时反映在图像上
+    def on_press1(self, event):
+        if event.inaxes:  # 判断鼠标是否在axes内
+            if event.button == 1:  # 判断按下的是否为鼠标左键1（右键是3）
+                self.press = True
+                self.lastx = event.xdata  # 获取鼠标按下时的坐标X
+                self.lasty = event.ydata  # 获取鼠标按下时的坐标Y
+    def on_move1(self, event):
+        axtemp = event.inaxes
+        if axtemp:
+            if self.press:  # 按下状态
+                # 计算新的坐标原点并移动
+                # 获取当前最新鼠标坐标与按下时坐标的差值
+                x = event.xdata - self.lastx
+                y = event.ydata - self.lasty
+                # 获取当前原点和最大点的4个位置
+                x_min, x_max = axtemp.get_xlim()
+                y_min, y_max = axtemp.get_ylim()
+
+                x_min = x_min - x
+                x_max = x_max - x
+                y_min = y_min - y
+                y_max = y_max - y
+
+                axtemp.set_xlim(x_min, x_max)
+                axtemp.set_ylim(y_min, y_max)
+                self.canvas1.draw_idle()  # 绘图动作实时反映在图像上
+    def on_release1(self, event):
+        if self.press:
+            self.press = False  # 鼠标松开，结束移
+    def call_back1(self, event):
+        axtemp = event.inaxes
+        x_min, x_max = axtemp.get_xlim()
+        y_min, y_max = axtemp.get_ylim()
+        xfanwei = (x_max - x_min) / 10
+        yfanwei = (y_max - y_min) / 10
+        if event.button == 'up':
+            axtemp.set(xlim=(x_min + xfanwei, x_max - xfanwei))
+            axtemp.set(ylim=(y_min + yfanwei, y_max - yfanwei))
+        elif event.button == 'down':
+            axtemp.set(xlim=(x_min - xfanwei, x_max + xfanwei))
+            axtemp.set(ylim=(y_min - yfanwei, y_max + yfanwei))
+        self.canvas1.draw_idle()  # 绘图动作实时反映在图像上
+    def on_press2(self, event):
+        if event.inaxes:  # 判断鼠标是否在axes内
+            if event.button == 1:  # 判断按下的是否为鼠标左键1（右键是3）
+                self.press = True
+                self.lastx = event.xdata  # 获取鼠标按下时的坐标X
+                self.lasty = event.ydata  # 获取鼠标按下时的坐标Y
+    def on_move2(self, event):
+        axtemp = event.inaxes
+        if axtemp:
+            if self.press:  # 按下状态
+                # 计算新的坐标原点并移动
+                # 获取当前最新鼠标坐标与按下时坐标的差值
+                x = event.xdata - self.lastx
+                y = event.ydata - self.lasty
+                # 获取当前原点和最大点的4个位置
+                x_min, x_max = axtemp.get_xlim()
+                y_min, y_max = axtemp.get_ylim()
+
+                x_min = x_min - x
+                x_max = x_max - x
+                y_min = y_min - y
+                y_max = y_max - y
+
+                axtemp.set_xlim(x_min, x_max)
+                axtemp.set_ylim(y_min, y_max)
+                self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
+    def on_release2(self, event):
+        if self.press:
+            self.press = False  # 鼠标松开，结束移
+    def call_back2(self, event):
+        axtemp = event.inaxes
+        x_min, x_max = axtemp.get_xlim()
+        y_min, y_max = axtemp.get_ylim()
+        xfanwei = (x_max - x_min) / 10
+        yfanwei = (y_max - y_min) / 10
+        if event.button == 'up':
+            axtemp.set(xlim=(x_min + xfanwei, x_max - xfanwei))
+            axtemp.set(ylim=(y_min + yfanwei, y_max - yfanwei))
+        elif event.button == 'down':
+            axtemp.set(xlim=(x_min - xfanwei, x_max + xfanwei))
+            axtemp.set(ylim=(y_min - yfanwei, y_max + yfanwei))
+        self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
 
 class WorkerSignals(QObject):
     finished = pyqtSignal()
@@ -617,7 +759,7 @@ class Worker(QRunnable):
 
         self.data = DataPlot(delay.interval, n=8192)
         self.data.t = self.length
-        self.data.f = 10
+        self.data.f = 5
 
         for n in range(0, self.iter):
             self.signals.progress2.emit(self.progress_total)
@@ -625,7 +767,7 @@ class Worker(QRunnable):
             if STOP is not True:
 
                 time.sleep(0.2)
-                print(self.data.mat)
+                # print(self.data.mat)
                 self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock)
                 self.data.mat.append(self.data_buffer)
                 self.data.fft()
@@ -700,7 +842,7 @@ class Worker(QRunnable):
 
 
 async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtClock):
-    acquisition.channel = 1
+    acquisition.channel = 2
     if IsOpenExtClock:
         acquisition.terminal = 3
     acquisition.edge = Edge.RISING
