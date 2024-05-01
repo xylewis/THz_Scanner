@@ -50,10 +50,10 @@ if __name__ == '__main__':
     delay = DelayControl("10.168.1.16")
     acquisition = DataCollection("Dev3")
 
-    delay.offset = -390  # Sampling Offset (ps)
+    delay.offset = -340  # Sampling Offset (ps)
     delay.length = 100  # Sampling Length (ps)
     delay.interval = 0.02  # Sampling Interval (ps)
-    delay.iteration = 2  # Iteration Average
+    delay.iteration = 10  # Iteration Average
 
     ts = [x * delay.interval for x in range(int(delay.length / delay.interval))]
     # raw_data = main_task()
@@ -62,7 +62,7 @@ if __name__ == '__main__':
 
     plt.ion()
 
-    for i in range(300):
+    for i in range(10):
         raw_data = main_task()
 
         plt.clf()

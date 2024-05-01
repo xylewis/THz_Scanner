@@ -37,13 +37,13 @@ class linerscan(QWidget, Ui_Form1):
 
         self.f0 = 0.75
         self.x_start = 0
-        self.x_end = 4
+        self.x_end = 1
         self.x_step = 1
         self.y_start = 0
-        self.y_end = 3
+        self.y_end = 2
         self.y_step = 1
-        self.x_speed = 2.0
-        self.y_speed = 2.0
+        self.x_speed = 0.5
+        self.y_speed = 0.5
         self.axisGroup = [3,4]
 
         self.length = 70
@@ -66,6 +66,7 @@ class linerscan(QWidget, Ui_Form1):
         self.comboDelay.addItems(["127.0.0.1", "10.168.1.16"])
         self.comboMotion.addItems(["127.0.0.1", "10.168.1.11"])
         self.comboDevice.addItems(["Dev1", "Dev2", "Dev3", "Dev4"])
+        self.comboFig.addItems(["Time","Mag","Pha"])
         self.comboDelay.setCurrentIndex(1)
         self.comboMotion.setCurrentIndex(1)
         self.comboDevice.setCurrentIndex(2)
@@ -152,6 +153,12 @@ class linerscan(QWidget, Ui_Form1):
         self.canvas4.fig.patch.set_facecolor("None")
         self.canvas4.ax1.patch.set_alpha(0)
         self.canvas4.setStyleSheet("background-color:transparent;")
+        self.canvas.ax1.xaxis.grid()
+        self.canvas.ax1.yaxis.grid()
+        self.canvas1.ax1.xaxis.grid()
+        self.canvas1.ax1.yaxis.grid()
+        self.canvas2.ax1.xaxis.grid()
+        self.canvas2.ax1.yaxis.grid()
         self.canvas.mpl_connect("button_press_event", self.on_press)
         self.canvas.mpl_connect("button_release_event", self.on_release)
         self.canvas.mpl_connect("motion_notify_event", self.on_move)
@@ -227,6 +234,11 @@ class linerscan(QWidget, Ui_Form1):
         self.btnOpenPath.clicked.connect(self.OpenPath)
         self.btnSelectPath.clicked.connect(self.SelectPath)
         self.togbtnAutoBak.clicked.connect(self.AutoBakEnable)
+        self.dspinXmin.valueChanged.connect(self.axesChange)
+        self.dspinXmax.valueChanged.connect(self.axesChange)
+        self.dspinYmin.valueChanged.connect(self.axesChange)
+        self.dspinYmax.valueChanged.connect(self.axesChange)
+        self.btnVanilla.clicked.connect(self.axesReset)
 
         # self.ui.btnExit.clicked.connect(lambda: sys.exit(app.exec()))
         self.togbtnClock.clicked.connect(self.clockEnable)
@@ -454,25 +466,24 @@ class linerscan(QWidget, Ui_Form1):
             # self.canvas2.draw()
 
     def getResult(self, result):
-        self.canvas3.ax1.clear()
-        self.canvas4.ax1.clear()
-        np.save('result1.npy', result.amp)
-        X, Y = np.meshgrid(self.x_sequence,self.y_sequence2)
-        f_seq_array = 10 ** (result.amp[:,0:len(result.f)] / 20)
-        temp1 = np.where((result.f-self.f0) == min(abs(result.f-self.f0)))
-        temp2 = np.where((result.f-self.f0) == -min(abs(result.f-self.f0)))
-        if temp1:
-            fN=temp1[0][0]
-        elif temp2:
-            fN=temp2[0][0]
-        f0_seq = (f_seq_array[:, fN])
-        f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
-        self.canvas3.ax1.pcolor(X, Y, np.abs(f0_plane))
-        self.canvas4.ax1.pcolor(X, Y, np.angle(f0_plane))
-        self.canvas3.fig.tight_layout()
-        self.canvas3.draw()
-        self.canvas4.fig.tight_layout()
-        self.canvas4.draw()
+        # self.canvas3.ax1.clear()
+        # self.canvas4.ax1.clear()
+        # X, Y = np.meshgrid(self.x_sequence,self.y_sequence2)
+        # f_seq_array = 10 ** (result.amp[:,0:len(result.f)] / 20)
+        # temp1 = np.where((result.f-self.f0) == min(abs(result.f-self.f0)))
+        # temp2 = np.where((result.f-self.f0) == -min(abs(result.f-self.f0)))
+        # if temp1:
+        #     fN=temp1[0][0]
+        # elif temp2:
+        #     fN=temp2[0][0]
+        # f0_seq = (f_seq_array[:, fN])
+        # f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
+        # self.canvas3.ax1.pcolor(X, Y, np.abs(f0_plane))
+        # self.canvas4.ax1.pcolor(X, Y, np.angle(f0_plane))
+        # self.canvas3.fig.tight_layout()
+        # self.canvas3.draw()
+        # self.canvas4.fig.tight_layout()
+        # self.canvas4.draw()
         self.btnHome.setEnabled(True)
 
     def execute_this_fn(self):
@@ -531,6 +542,9 @@ class linerscan(QWidget, Ui_Form1):
         self.canvas.ax1.clear()
         self.canvas1.ax1.clear()
         self.canvas2.ax1.clear()
+        self.canvas3.ax1.clear()
+        self.canvas4.ax1.clear()
+
         if self.SwitchButton.isChecked():
             self.canvas.ax1.patch.set_facecolor('#323232')
             self.canvas1.ax1.patch.set_facecolor('#323232')
@@ -551,16 +565,53 @@ class linerscan(QWidget, Ui_Form1):
         else:
             self.canvas2.ax1.plot(data.f, data.pha[-1][0:len(data.f)])
 
+        X, Y = np.meshgrid(self.x_sequence,self.y_sequence2)
+        f_seq_array = 10 ** (data.amp[:,0:len(data.f)] / 20)
+        f_seq_array1 = (data.pha[:,0:len(data.f)])
+        temp1 = np.where((data.f-self.f0) == min(abs(data.f-self.f0)))
+        temp2 = np.where((data.f-self.f0) == -min(abs(data.f-self.f0)))
+        if len(temp1[0]):
+            fN=temp1[0][0]
+        elif len(temp2[0]):
+            fN=temp2[0][0]
+        else:
+            print("no found")
+        f0_seq = (f_seq_array[:, fN])
+        f0_seq1 = (f_seq_array1[:, fN])
+
+        if len(f0_seq) < len(self.y_sequence) * len(self.x_sequence):
+            f0_seq = np.pad(f0_seq,(0,len(self.y_sequence) * len(self.x_sequence)-len(f0_seq)),'constant',constant_values=(0,0))
+            f0_seq1 = np.pad(f0_seq1,(0,len(self.y_sequence) * len(self.x_sequence)-len(f0_seq1)),'constant',constant_values=(0,0))
+
+        f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
+        f0_plane1 = f0_seq1.reshape(len(self.y_sequence), len(self.x_sequence))
+        self.canvas3.ax1.pcolor(X, Y, np.abs(f0_plane))
+        self.canvas4.ax1.pcolor(X, Y, np.abs(f0_plane1))
 
         # self.canvas1.fig.suptitle("F-Domain")
         # self.canvas1.fig.supxlabel("Frequency (THz)")
         # self.canvas1.fig.supylabel("Magnitude (dB)")
+        self.canvas.ax1.xaxis.grid()
+        self.canvas.ax1.yaxis.grid()
+        self.canvas1.ax1.xaxis.grid()
+        self.canvas1.ax1.yaxis.grid()
+        self.canvas2.ax1.xaxis.grid()
+        self.canvas2.ax1.yaxis.grid()
+
         self.canvas.fig.tight_layout()
         self.canvas.draw()
         self.canvas1.fig.tight_layout()
         self.canvas1.draw()
         self.canvas2.fig.tight_layout()
         self.canvas2.draw()
+        self.canvas3.fig.tight_layout()
+        self.canvas3.draw()
+        self.canvas4.fig.tight_layout()
+        self.canvas4.draw()
+
+        self.xylim = [self.canvas.ax1.get_xlim(),self.canvas.ax1.get_ylim()]
+        self.xylim1 = [self.canvas1.ax1.get_xlim(),self.canvas1.ax1.get_ylim()]
+        self.xylim2 = [self.canvas2.ax1.get_xlim(),self.canvas2.ax1.get_ylim()]
 
         if self.xRange * self.yRange == len(data.mat):
             self.result = data.mat
@@ -821,11 +872,16 @@ class linerscan(QWidget, Ui_Form1):
         view.closed.connect(w.close)
 
     def on_press(self, event):
+        # axtemp = event.inaxes
         if event.inaxes:  # 判断鼠标是否在axes内
             if event.button == 1:  # 判断按下的是否为鼠标左键1（右键是3）
                 self.press = True
                 self.lastx = event.xdata  # 获取鼠标按下时的坐标X
                 self.lasty = event.ydata  # 获取鼠标按下时的坐标Y
+            # if event.button == 2:
+            #     axtemp.set_xlim(1, 2)
+            #     # axtemp.set_ylim(-10, 0)
+            #     self.canvas.draw_idle()  # 绘图动作实时反映在图像上
     def on_move(self, event):
         axtemp = event.inaxes
         if axtemp:
@@ -946,6 +1002,61 @@ class linerscan(QWidget, Ui_Form1):
             axtemp.set(xlim=(x_min - xfanwei, x_max + xfanwei))
             axtemp.set(ylim=(y_min - yfanwei, y_max + yfanwei))
         self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
+    def axesChange(self):
+        if self.comboFig.currentIndex() == 0:
+            # if self.dspinXmin.value() > self.dspinXmax.value():
+            #     self.dspinXmax.setValue(self.dspinXmin.value() + 10)
+            # if self.dspinYmin.value() > self.dspinYmax.value():
+            #     self.dspinYmax.setValue(self.dspinYmin.value() + 10)
+            self.canvas.ax1.set_xlim(self.dspinXmin.value(),self.dspinXmax.value())
+            self.canvas.ax1.set_ylim(self.dspinYmin.value(),self.dspinYmax.value())
+            self.canvas.draw_idle()  # 绘图动作实时反映在图像上
+        elif self.comboFig.currentIndex() == 1:
+            # if self.dspinXmin.value() > self.dspinXmax.value():
+            #     self.dspinXmax.setValue(self.dspinXmin.value() + 10)
+            # if self.dspinYmin.value() > self.dspinYmax.value():
+            #     self.dspinYmax.setValue(self.dspinYmin.value() + 10)
+            self.canvas1.ax1.set_xlim(self.dspinXmin.value(),self.dspinXmax.value())
+            self.canvas1.ax1.set_ylim(self.dspinYmin.value(),self.dspinYmax.value())
+            self.canvas1.draw_idle()  # 绘图动作实时反映在图像上
+        elif self.comboFig.currentIndex() == 2:
+            # if self.dspinXmin.value() > self.dspinXmax.value():
+            #     self.dspinXmax.setValue(self.dspinXmin.value() + 10)
+            # if self.dspinYmin.value() > self.dspinYmax.value():
+            #     self.dspinYmax.setValue(self.dspinYmin.value() + 10)
+            self.canvas2.ax1.set_xlim(self.dspinXmin.value(),self.dspinXmax.value())
+            self.canvas2.ax1.set_ylim(self.dspinYmin.value(),self.dspinYmax.value())
+            self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
+    def axesReset(self):
+        try:
+            self.xylim
+        except:
+            pass
+        else:
+            if self.comboFig.currentIndex() == 0:
+                self.dspinXmin.setValue(self.xylim[0][0])
+                self.dspinXmax.setValue(self.xylim[0][1])
+                self.dspinYmin.setValue(self.xylim[1][0])
+                self.dspinYmax.setValue(self.xylim[1][1])
+            elif self.comboFig.currentIndex() == 1:
+                self.dspinXmin.setValue(self.xylim1[0][0])
+                self.dspinXmax.setValue(self.xylim1[0][1])
+                self.dspinYmin.setValue(self.xylim1[1][0])
+                self.dspinYmax.setValue(self.xylim1[1][1])
+            elif self.comboFig.currentIndex() == 2:
+                self.dspinXmin.setValue(self.xylim2[0][0])
+                self.dspinXmax.setValue(self.xylim2[0][1])
+                self.dspinYmin.setValue(self.xylim2[1][0])
+                self.dspinYmax.setValue(self.xylim2[1][1])
+            self.canvas.ax1.set_xlim(self.xylim[0][0], self.xylim[0][1])
+            self.canvas.ax1.set_ylim(self.xylim[1][0], self.xylim[1][1])
+            self.canvas.draw_idle()  # 绘图动作实时反映在图像上
+            self.canvas1.ax1.set_xlim(self.xylim1[0][0], self.xylim1[0][1])
+            self.canvas1.ax1.set_ylim(self.xylim1[1][0], self.xylim1[1][1])
+            self.canvas1.draw_idle()  # 绘图动作实时反映在图像上
+            self.canvas2.ax1.set_xlim(self.xylim2[0][0], self.xylim2[0][1])
+            self.canvas2.ax1.set_ylim(self.xylim2[1][0], self.xylim2[1][1])
+            self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
 
 class WorkerSignals(QObject):
     finished = pyqtSignal()
@@ -1045,6 +1156,7 @@ class Worker(QRunnable):
             axis[1].step(y_step)
             axis[0].move(x_start)
             for i in range(len(x_sequence)):
+                time.sleep(0.2)
                 if STOP is not True:
                     while not all([ax.idle for ax in axis]):
                         if STOP is not True:

@@ -52,6 +52,7 @@ class submain(QWidget, Ui_Form):
         self.togbtnClock.setChecked(False)
         self.comboPort.addItems(["127.0.0.1", "10.168.1.16"])
         self.comboDev.addItems(["127.0.0.1", "10.168.1.11"])
+        self.comboFig.addItems(["Time","Mag","Pha"])
         self.comboPort.setCurrentIndex(1)
         self.comboDev.setCurrentIndex(1)
         self.dspinLength.setRange(0, 400 - self.dspinOffset.value())
@@ -107,6 +108,12 @@ class submain(QWidget, Ui_Form):
         self.canvas2.fig.patch.set_facecolor("None")
         self.canvas2.ax1.patch.set_alpha(0)
         self.canvas2.setStyleSheet("background-color:transparent;")
+        self.canvas.ax1.xaxis.grid()
+        self.canvas.ax1.yaxis.grid()
+        self.canvas1.ax1.xaxis.grid()
+        self.canvas1.ax1.yaxis.grid()
+        self.canvas2.ax1.xaxis.grid()
+        self.canvas2.ax1.yaxis.grid()
         self.canvas.mpl_connect("button_press_event", self.on_press)
         self.canvas.mpl_connect("button_release_event", self.on_release)
         self.canvas.mpl_connect("motion_notify_event", self.on_move)
@@ -145,6 +152,12 @@ class submain(QWidget, Ui_Form):
         self.btnOpenPath.clicked.connect(self.OpenPath)
         self.btnSelectPath.clicked.connect(self.SelectPath)
         self.togbtnAutoBak.clicked.connect(self.AutoBakEnable)
+        self.dspinXmin.valueChanged.connect(self.axesChange)
+        self.dspinXmax.valueChanged.connect(self.axesChange)
+        self.dspinYmin.valueChanged.connect(self.axesChange)
+        self.dspinYmax.valueChanged.connect(self.axesChange)
+        self.btnVanilla.clicked.connect(self.axesReset)
+
 
         # self.ui.btnExit.clicked.connect(lambda: sys.exit(app.exec()))
         self.comboPort.currentIndexChanged.connect(self.ipChange)
@@ -323,7 +336,7 @@ class submain(QWidget, Ui_Form):
 
         self.canvas.ax1.plot(data.t, data.mat[-1])
         self.canvas.fig.suptitle('[Peak to Peak: %.2f Vpp]' % (np.max(data.mat[-1]) - np.min(data.mat[-1])))
-        print(len(data.f[0:500]))
+
         if self.swMag.isChecked():
             self.canvas1.ax1.plot(data.f, 10 ** (data.amp[-1][0:len(data.f)] / 20))
             self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
@@ -342,12 +355,23 @@ class submain(QWidget, Ui_Form):
         # self.canvas1.fig.suptitle("F-Domain")
         # self.canvas1.fig.supxlabel("Frequency (THz)")
         # self.canvas1.fig.supylabel("Magnitude (dB)")
+        self.canvas.ax1.xaxis.grid()
+        self.canvas.ax1.yaxis.grid()
+        self.canvas1.ax1.xaxis.grid()
+        self.canvas1.ax1.yaxis.grid()
+        self.canvas2.ax1.xaxis.grid()
+        self.canvas2.ax1.yaxis.grid()
         self.canvas.fig.tight_layout()
         self.canvas.draw()
         self.canvas1.fig.tight_layout()
         self.canvas1.draw()
         self.canvas2.fig.tight_layout()
         self.canvas2.draw()
+
+        self.xylim = [self.canvas.ax1.get_xlim(),self.canvas.ax1.get_ylim()]
+        self.xylim1 = [self.canvas1.ax1.get_xlim(),self.canvas1.ax1.get_ylim()]
+        self.xylim2 = [self.canvas2.ax1.get_xlim(),self.canvas2.ax1.get_ylim()]
+
         if self.iter == len(data.mat):
             self.result = data.mat
             if self.bakPath == os.path.abspath('.') + '\\.temp':
@@ -704,6 +728,61 @@ class submain(QWidget, Ui_Form):
             axtemp.set(xlim=(x_min - xfanwei, x_max + xfanwei))
             axtemp.set(ylim=(y_min - yfanwei, y_max + yfanwei))
         self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
+    def axesChange(self):
+        if self.comboFig.currentIndex() == 0:
+            # if self.dspinXmin.value() > self.dspinXmax.value():
+            #     self.dspinXmax.setValue(self.dspinXmin.value() + 10)
+            # if self.dspinYmin.value() > self.dspinYmax.value():
+            #     self.dspinYmax.setValue(self.dspinYmin.value() + 10)
+            self.canvas.ax1.set_xlim(self.dspinXmin.value(),self.dspinXmax.value())
+            self.canvas.ax1.set_ylim(self.dspinYmin.value(),self.dspinYmax.value())
+            self.canvas.draw_idle()  # 绘图动作实时反映在图像上
+        elif self.comboFig.currentIndex() == 1:
+            # if self.dspinXmin.value() > self.dspinXmax.value():
+            #     self.dspinXmax.setValue(self.dspinXmin.value() + 10)
+            # if self.dspinYmin.value() > self.dspinYmax.value():
+            #     self.dspinYmax.setValue(self.dspinYmin.value() + 10)
+            self.canvas1.ax1.set_xlim(self.dspinXmin.value(),self.dspinXmax.value())
+            self.canvas1.ax1.set_ylim(self.dspinYmin.value(),self.dspinYmax.value())
+            self.canvas1.draw_idle()  # 绘图动作实时反映在图像上
+        elif self.comboFig.currentIndex() == 2:
+            # if self.dspinXmin.value() > self.dspinXmax.value():
+            #     self.dspinXmax.setValue(self.dspinXmin.value() + 10)
+            # if self.dspinYmin.value() > self.dspinYmax.value():
+            #     self.dspinYmax.setValue(self.dspinYmin.value() + 10)
+            self.canvas2.ax1.set_xlim(self.dspinXmin.value(),self.dspinXmax.value())
+            self.canvas2.ax1.set_ylim(self.dspinYmin.value(),self.dspinYmax.value())
+            self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
+    def axesReset(self):
+        try:
+            self.xylim
+        except:
+            pass
+        else:
+            if self.comboFig.currentIndex() == 0:
+                self.dspinXmin.setValue(self.xylim[0][0])
+                self.dspinXmax.setValue(self.xylim[0][1])
+                self.dspinYmin.setValue(self.xylim[1][0])
+                self.dspinYmax.setValue(self.xylim[1][1])
+            elif self.comboFig.currentIndex() == 1:
+                self.dspinXmin.setValue(self.xylim1[0][0])
+                self.dspinXmax.setValue(self.xylim1[0][1])
+                self.dspinYmin.setValue(self.xylim1[1][0])
+                self.dspinYmax.setValue(self.xylim1[1][1])
+            elif self.comboFig.currentIndex() == 2:
+                self.dspinXmin.setValue(self.xylim2[0][0])
+                self.dspinXmax.setValue(self.xylim2[0][1])
+                self.dspinYmin.setValue(self.xylim2[1][0])
+                self.dspinYmax.setValue(self.xylim2[1][1])
+            self.canvas.ax1.set_xlim(self.xylim[0][0], self.xylim[0][1])
+            self.canvas.ax1.set_ylim(self.xylim[1][0], self.xylim[1][1])
+            self.canvas.draw_idle()  # 绘图动作实时反映在图像上
+            self.canvas1.ax1.set_xlim(self.xylim1[0][0], self.xylim1[0][1])
+            self.canvas1.ax1.set_ylim(self.xylim1[1][0], self.xylim1[1][1])
+            self.canvas1.draw_idle()  # 绘图动作实时反映在图像上
+            self.canvas2.ax1.set_xlim(self.xylim2[0][0], self.xylim2[0][1])
+            self.canvas2.ax1.set_ylim(self.xylim2[1][0], self.xylim2[1][1])
+            self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
 
 class WorkerSignals(QObject):
     finished = pyqtSignal()
