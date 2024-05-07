@@ -193,8 +193,8 @@ class linerscan(QWidget, Ui_Form1):
         self.SegmentedWidget_2.insertWidget(2, 'Magnitude', self.segAmp, onClick=lambda: self.stackedWidget_2.setCurrentIndex(2))
         self.SegmentedWidget_2.insertWidget(3, 'Phase', self.segPha, onClick=lambda: self.stackedWidget_2.setCurrentIndex(3))
         self.SegmentedWidget_2.setItemFontSize(12)
-        self.SegmentedWidget_2.setCurrentItem('Outline')
-        self.stackedWidget_2.setCurrentIndex(1)
+        self.SegmentedWidget_2.setCurrentItem('Runtime')
+        self.stackedWidget_2.setCurrentIndex(0)
 
         self.qpxpos.valueChanged.connect(lambda: self.axis[0].move(self.qpxpos.value()))
         self.qpypos.valueChanged.connect(lambda: self.axis[1].move(self.qpypos.value()))
@@ -204,7 +204,7 @@ class linerscan(QWidget, Ui_Form1):
         self.btnStart.clicked.connect(lambda: self.btnHome.setEnabled(False))
         # self.btnStart.clicked.connect(self.qpdebug)
         self.btnStart.clicked.connect(self.progress_busy)
-        self.btnStart.clicked.connect(self.startScan)
+        # self.btnStart.clicked.connect(self.startScan)
         self.btnStop.clicked.connect(self.stopThread)
         self.btnSave.clicked.connect(self.saveResult)
         self.btnLoad.clicked.connect(self.loadResult)
@@ -421,7 +421,7 @@ class linerscan(QWidget, Ui_Form1):
         worker.signals.progress2.connect(lambda: self.progress_ding_2(worker.progress_total))
         worker.signals.stop.connect(lambda: self.stopThreadAfter())
         worker.signals.youCanStop.connect(lambda: self.btnStop.setEnabled(True))
-        worker.signals.axIdle.connect(lambda: self.spotCtrl(worker.axIndex[0], worker.axIndex[1]))
+        # worker.signals.axIdle.connect(lambda: self.spotCtrl(worker.axIndex[0], worker.axIndex[1]))
         # Execute
         self.threadpool.start(worker)
 
@@ -585,6 +585,9 @@ class linerscan(QWidget, Ui_Form1):
 
         f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
         f0_plane1 = f0_seq1.reshape(len(self.y_sequence), len(self.x_sequence))
+        if len(f0_seq) == len(self.y_sequence) * len(self.x_sequence):
+            np.savetxt('幅值场图.txt',f0_plane)
+            np.savetxt('相位场图.txt',f0_plane1)
         self.canvas3.ax1.pcolor(X, Y, np.abs(f0_plane))
         self.canvas4.ax1.pcolor(X, Y, np.abs(f0_plane1))
 
