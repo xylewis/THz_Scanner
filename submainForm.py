@@ -48,11 +48,13 @@ class submain(QWidget, Ui_Form):
         self.bakPath = os.path.abspath('.') + '\\.temp'
         if not os.path.exists(self.bakPath):
             os.makedirs(self.bakPath)
+        self.channel = 1
 
         self.togbtnClock.setChecked(False)
         self.comboPort.addItems(["127.0.0.1", "10.168.1.16"])
         self.comboDev.addItems(["127.0.0.1", "10.168.1.11"])
         self.comboFig.addItems(["Time","Mag","Pha"])
+        self.comboChannel.addItems(["Channel1","Channel2"])
         self.comboPort.setCurrentIndex(1)
         self.comboDev.setCurrentIndex(1)
         self.dspinLength.setRange(0, 400 - self.dspinOffset.value())
@@ -162,6 +164,7 @@ class submain(QWidget, Ui_Form):
         # self.ui.btnExit.clicked.connect(lambda: sys.exit(app.exec()))
         self.comboPort.currentIndexChanged.connect(self.ipChange)
         self.comboDev.currentIndexChanged.connect(self.ipChange)
+        self.comboChannel.currentIndexChanged.connect(self.ipChange)
         self.togbtnClock.clicked.connect(self.clockEnable)
         self.SwitchButton.checkedChanged.connect(self.themeChange)
 
@@ -174,7 +177,8 @@ class submain(QWidget, Ui_Form):
                         self.offset,
                         self.delay,
                         self.motion,
-                        self.IsOpenExtClock
+                        self.IsOpenExtClock,
+                        self.channel
                         )
         worker.signals.result.connect(lambda: self.getResult(worker.result))
         # worker.signals.finished.connect(self.thread_complete)
@@ -335,26 +339,31 @@ class submain(QWidget, Ui_Form):
             self.canvas2.ax1.patch.set_facecolor('#323232')
 
         self.canvas.ax1.plot(data.t, data.mat[-1])
-        self.canvas.fig.suptitle('[Peak to Peak: %.2f Vpp]' % (np.max(data.mat[-1]) - np.min(data.mat[-1])))
+        self.canvas.ax1.set_title("T-domain"+'  '+'[Vpp: %.2f]' % (np.max(data.mat[-1]) - np.min(data.mat[-1])))
+        self.canvas.ax1.set_xlabel("Time(ps)")
+        self.canvas.ax1.set_ylabel("Voltage")
+
+        self.canvas1.ax1.set_title("Mag")
+        self.canvas1.ax1.set_xlabel("Frequency(THz)")
+        self.canvas2.ax1.set_title("Pha")
+        self.canvas2.ax1.set_xlabel("Frequency(THz)")
 
         if self.swMag.isChecked():
             self.canvas1.ax1.plot(data.f, 10 ** (data.amp[-1][0:len(data.f)] / 20))
-            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
+            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 11, 5))
+            self.canvas1.ax1.set_ylabel("Magnitude(a.u)")
         else:
             self.canvas1.ax1.plot(data.f, data.amp[-1][0:len(data.f)])
-            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
+            self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 11, 5))
+            self.canvas1.ax1.set_ylabel("Magnitude(dB)")
 
         if self.swPha.isChecked():
-            self.canvas2.ax1.plot(data.f, data.pha[-1][0:len(data.f)] / 180 * np.pi)
-            self.canvas2.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
-
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]))
+            self.canvas2.ax1.set_ylabel("Phase(deg)")
         else:
-            self.canvas2.ax1.plot(data.f, data.pha[-1][0:len(data.f)])
-            self.canvas2.ax1.xaxis.set_ticks(np.arange(0, 5.5, 1))
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]) / 180 * np.pi)
+            self.canvas2.ax1.set_ylabel("Phase(rad)")
 
-        # self.canvas1.fig.suptitle("F-Domain")
-        # self.canvas1.fig.supxlabel("Frequency (THz)")
-        # self.canvas1.fig.supylabel("Magnitude (dB)")
         self.canvas.ax1.xaxis.grid()
         self.canvas.ax1.yaxis.grid()
         self.canvas1.ax1.xaxis.grid()
@@ -466,8 +475,10 @@ class submain(QWidget, Ui_Form):
     def ipChange(self):
         self.delay = self.comboPort.currentText()
         self.motion = self.comboDev.currentText()
+        self.channel = self.comboChannel.currentIndex() + 1
         print(self.delay)
         print(self.motion)
+        print(self.channel)
 
     def clockEnable(self):
         if self.togbtnClock.isChecked():
@@ -561,24 +572,6 @@ class submain(QWidget, Ui_Form):
             self.linePath.setEnabled(False)
             self.btnSelectPath.setEnabled(False)
             self.btnOpenPath.setEnabled(False)
-
-    # def renderEchart(self, x, y):
-    #     c = (
-    #         Line(
-    #             init_opts=opts.InitOpts(
-    #                 animation_opts=opts.AnimationOpts(
-    #                     animation=False,
-    #                     animation_delay=1000, animation_easing="elasticOut"
-    #                 )
-    #             )
-    #         )
-    #         .add_xaxis(x)
-    #         .add_yaxis("A", y, is_symbol_show=False)
-    #         # .set_global_opts(title_opts=opts.TitleOpts(title="Bar-动画配置", subtitle="AnimationOpts"))
-    #         .set_series_opts(label_opts=opts.LabelOpts(is_show=False))
-    #         .render("animation.html")
-    #     )
-    #     self.browser.load(QUrl("D:/FinancialMedia/CodeCraft/PYCHARM/NeoTHz/animation.html"))
 
     def showSBRFlyout(self):
         view = FlyoutView(
@@ -811,6 +804,7 @@ class Worker(QRunnable):
         self.delay = args[4]
         self.motion = args[5]
         self.IsOpenExtClock = args[6]
+        self.channel = args[7]
         self.read_count = 1
         self.data = DataPlot
         self.data_buffer = []
@@ -838,7 +832,7 @@ class Worker(QRunnable):
 
         self.data = DataPlot(delay.interval, n=8192)
         self.data.t = self.length
-        self.data.f = 5
+        self.data.f = 10
 
         for n in range(0, self.iter):
             self.signals.progress2.emit(self.progress_total)
@@ -847,7 +841,7 @@ class Worker(QRunnable):
 
                 time.sleep(0.2)
                 # print(self.data.mat)
-                self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock)
+                self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock, self.channel)
                 self.data.mat.append(self.data_buffer)
                 self.data.fft()
 
@@ -920,8 +914,8 @@ class Worker(QRunnable):
         #     self.signals.stop.emit()
 
 
-async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtClock):
-    acquisition.channel = 2
+async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtClock, channel):
+    acquisition.channel = channel
     if IsOpenExtClock:
         acquisition.terminal = 3
     acquisition.edge = Edge.RISING
@@ -949,8 +943,8 @@ async def task_exec(delay: DelayControl, acquisition: DataCollection):
     print("<Info> Task Completed.")
 
 
-def main_task(delay, acquisition, IsOpenExtClock):
+def main_task(delay, acquisition, IsOpenExtClock, channel):
     import asyncio
-    asyncio.run(task_init(delay, acquisition, IsOpenExtClock))
+    asyncio.run(task_init(delay, acquisition, IsOpenExtClock, channel))
     asyncio.run(task_exec(delay, acquisition))
     return np.mean(acquisition.buffer, axis=0)

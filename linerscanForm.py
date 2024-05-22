@@ -20,13 +20,31 @@ from thzsys.zmotion import Zmotion, Axis
 
 # from thzsignal import SignalCollection, SingleScan, LinearScan
 # from delayline import DelayType
-from PyQt5.QtCore import QRunnable, Qt, QThreadPool, QObject, pyqtSignal, pyqtSlot
+from PyQt5.QtCore import QRunnable, Qt, QThreadPool, QObject, pyqtSignal, pyqtSlot, QTimer
 import numpy as np
 from dataplot import DataPlot
 
 STOP = False
 
 class linerscan(QWidget, Ui_Form1):
+    # region @property
+    @property
+    def xRange(self):
+        return int((self.x_end + self.x_step - self.x_start) / self.x_step)
+    @property
+    def yRange(self):
+        return int((self.y_end + self.y_step - self.y_start) / self.y_step)
+    @property
+    def x_sequence(self):
+        return np.arange(self.x_start, self.x_end + self.x_step, self.x_step)
+    @property
+    def y_sequence(self):
+        return np.arange(self.y_start, self.y_end + self.y_step, self.y_step)
+    @property
+    def y_sequence2(self):
+        return np.arange(self.y_end, self.y_start - self.y_step, -self.y_step)
+    # endregion
+
     def __init__(self, parent=None):
         super().__init__(parent=parent)
         self.setupUi(self)
@@ -42,9 +60,10 @@ class linerscan(QWidget, Ui_Form1):
         self.y_start = 0
         self.y_end = 2
         self.y_step = 1
-        self.x_speed = 0.5
-        self.y_speed = 0.5
+        self.x_speed = 1
+        self.y_speed = 1
         self.axisGroup = [3,4]
+        self.channel = 1
 
         self.length = 70
         self.offset = 0
@@ -67,6 +86,7 @@ class linerscan(QWidget, Ui_Form1):
         self.comboMotion.addItems(["127.0.0.1", "10.168.1.11"])
         self.comboDevice.addItems(["Dev1", "Dev2", "Dev3", "Dev4"])
         self.comboFig.addItems(["Time","Mag","Pha"])
+        self.comboChannel.addItems(["Channel1","Channel2"])
         self.comboDelay.setCurrentIndex(1)
         self.comboMotion.setCurrentIndex(1)
         self.comboDevice.setCurrentIndex(2)
@@ -105,7 +125,11 @@ class linerscan(QWidget, Ui_Form1):
         self.btnOpenPath.setEnabled(False)
         self.btnLoad.setVisible(False)
         self.btnExit.setVisible(False)
-
+        self.SimpleCardWidget_7.setEnabled(False)
+        self.SimpleCardWidget_8.setEnabled(False)
+        self.rbtnAxis34.setChecked(True)
+        self.StrongBodyLabel.setText("SelectedAxis#1")
+        self.StrongBodyLabel_2.setText("SelectedAxis#2")
 
         self.canvas = self.widget.canvas
         self.canvas.ax1 = self.canvas.fig.add_subplot(111)
@@ -172,33 +196,44 @@ class linerscan(QWidget, Ui_Form1):
         self.canvas2.mpl_connect("motion_notify_event", self.on_move2)
         self.canvas2.mpl_connect('scroll_event', self.call_back2)
 
-        self.segSetting = PivotItem('Setting')
-        self.segOperation = PivotItem('Operation')
-        self.segAxis = PivotItem('Axis')
+        self.segSetting = PivotItem('Motion')
+        self.segOperation = PivotItem('AxisScan')
+        self.segAxis = PivotItem('DelayScan')
         self.segDev = PivotItem('Dev')
-        self.SegmentedWidget.insertWidget(0, 'Setting', self.segSetting, onClick=self.pageSetting)
-        self.SegmentedWidget.insertWidget(1, 'Operation', self.segOperation, onClick=self.pageOperation)
-        self.SegmentedWidget.insertWidget(3, 'Axis', self.segAxis, onClick=self.pageAxis)
-        self.SegmentedWidget.insertWidget(2, 'Dev', self.segDev, onClick=self.pageDev)
+        self.SegmentedWidget.insertWidget(0, 'Motion', self.segSetting, onClick=lambda: self.stackedWidget.setCurrentIndex(4))
+        self.SegmentedWidget.insertWidget(1, 'AxisScan', self.segOperation, onClick=lambda: self.stackedWidget.setCurrentIndex(3))
+        self.SegmentedWidget.insertWidget(2, 'DelayScan', self.segAxis, onClick=lambda: self.stackedWidget.setCurrentIndex(0))
+        self.SegmentedWidget.insertWidget(3, 'Dev', self.segDev, onClick=lambda: self.stackedWidget.setCurrentIndex(2))
         self.SegmentedWidget.setItemFontSize(12)
-        self.SegmentedWidget.setCurrentItem('Setting')
+        self.SegmentedWidget.setCurrentItem('DelayScan')
         self.stackedWidget.setCurrentIndex(0)
 
-        self.segScan = PivotItem('Outline')
+        # self.segScan = PivotItem('Outline')
         self.segRuntime = PivotItem('Runtime')
         self.segAmp = PivotItem('Magnitude')
         self.segPha = PivotItem('Phase')
-        self.SegmentedWidget_2.insertWidget(0, 'Outline', self.segScan, onClick=lambda: self.stackedWidget_2.setCurrentIndex(1))
-        self.SegmentedWidget_2.insertWidget(1, 'Runtime', self.segRuntime, onClick=lambda: self.stackedWidget_2.setCurrentIndex(0))
-        self.SegmentedWidget_2.insertWidget(2, 'Magnitude', self.segAmp, onClick=lambda: self.stackedWidget_2.setCurrentIndex(2))
-        self.SegmentedWidget_2.insertWidget(3, 'Phase', self.segPha, onClick=lambda: self.stackedWidget_2.setCurrentIndex(3))
+        # self.SegmentedWidget_2.insertWidget(0, 'Outline', self.segScan, onClick=lambda: self.stackedWidget_2.setCurrentIndex(1))
+        self.SegmentedWidget_2.insertWidget(0, 'Runtime', self.segRuntime, onClick=lambda: self.stackedWidget_2.setCurrentIndex(0))
+        self.SegmentedWidget_2.insertWidget(1, 'Magnitude', self.segAmp, onClick=lambda: self.stackedWidget_2.setCurrentIndex(2))
+        self.SegmentedWidget_2.insertWidget(2, 'Phase', self.segPha, onClick=lambda: self.stackedWidget_2.setCurrentIndex(3))
         self.SegmentedWidget_2.setItemFontSize(12)
         self.SegmentedWidget_2.setCurrentItem('Runtime')
         self.stackedWidget_2.setCurrentIndex(0)
 
-        self.qpxpos.valueChanged.connect(lambda: self.axis[0].move(self.qpxpos.value()))
-        self.qpypos.valueChanged.connect(lambda: self.axis[1].move(self.qpypos.value()))
+        self.connectInit()
 
+        self.btnStart.setIcon(FIF.POWER_BUTTON)
+        self.btnGo1.setIcon(FIF.ACCEPT_MEDIUM)
+        self.btnGo2.setIcon(FIF.ACCEPT_MEDIUM)
+        self.btnR1.setIcon(FIF.RIGHT_ARROW)
+        self.btnR2.setIcon(FIF.RIGHT_ARROW)
+        self.btnL1.setIcon(FIF.LEFT_ARROW)
+        self.btnL2.setIcon(FIF.LEFT_ARROW)
+        self.btnSta1.setIcon(FIF.PAUSE_BOLD)
+        self.btnSta2.setIcon(FIF.PAUSE_BOLD)
+
+    def connectInit(self):
+        # region @connect
         self.btnLink.clicked.connect(self.linkStart)
         self.btnStart.clicked.connect(self.oh_no)
         self.btnStart.clicked.connect(lambda: self.btnHome.setEnabled(False))
@@ -208,7 +243,6 @@ class linerscan(QWidget, Ui_Form1):
         self.btnStop.clicked.connect(self.stopThread)
         self.btnSave.clicked.connect(self.saveResult)
         self.btnLoad.clicked.connect(self.loadResult)
-        self.btnHome.clicked.connect(self.home)
         self.dspinLength.valueChanged.connect(self.lengthAssert)
         self.dspinOffset.valueChanged.connect(self.offsetAssert)
         self.spinIter.valueChanged.connect(self.iterAssert)
@@ -222,6 +256,7 @@ class linerscan(QWidget, Ui_Form1):
         self.comboDelay.currentTextChanged.connect(self.ipChange)
         self.comboMotion.currentTextChanged.connect(self.ipChange)
         self.comboDevice.currentTextChanged.connect(self.ipChange)
+        self.comboChannel.currentIndexChanged.connect(self.ipChange)
         self.spinXstart.valueChanged.connect(self.XstartAssert)
         self.spinXend.valueChanged.connect(self.XendAssert)
         self.spinXstep.valueChanged.connect(self.XstepAssert)
@@ -240,44 +275,107 @@ class linerscan(QWidget, Ui_Form1):
         self.dspinYmax.valueChanged.connect(self.axesChange)
         self.btnVanilla.clicked.connect(self.axesReset)
 
-        # self.ui.btnExit.clicked.connect(lambda: sys.exit(app.exec()))
         self.togbtnClock.clicked.connect(self.clockEnable)
         self.SwitchButton.checkedChanged.connect(self.themeChange)
+        self.btnGo1.clicked.connect(self.axisMove)
+        self.btnGo2.clicked.connect(self.axisMove)
+        self.btnL1.clicked.connect(self.axisMove)
+        self.btnL2.clicked.connect(self.axisMove)
+        self.btnR1.clicked.connect(self.axisMove)
+        self.btnR2.clicked.connect(self.axisMove)
+        self.btnCancelMotion.clicked.connect(self.axisMove)
+        self.btnHome.clicked.connect(self.axisMove)
 
-        self.btnStart.setIcon(FIF.POWER_BUTTON)
-
-    @property
-    def xRange(self):
-        return int((self.x_end + self.x_step - self.x_start) / self.x_step)
-    @property
-    def yRange(self):
-        return int((self.y_end + self.y_step - self.y_start) / self.y_step)
-    @property
-    def x_sequence(self):
-        return np.arange(self.x_start, self.x_end + self.x_step, self.x_step)
-    @property
-    def y_sequence(self):
-        return np.arange(self.y_start, self.y_end + self.y_step, self.y_step)
-    @property
-    def y_sequence2(self):
-        return np.arange(self.y_end, self.y_start - self.y_step, -self.y_step)
+        self.timer = QTimer()
+        self.timer.timeout.connect(self.watchPos)
+        # endregion
 
     def linkStart(self):
         try:
+            if self.rbtnAxis12.isChecked():
+                self.axisGroup = [1, 2]
+                self.StrongBodyLabel_2.setText("Axis1 Motion (mm/deg)")
+                self.StrongBodyLabel.setText("Axis2 Motion (mm/deg)")
+            elif self.rbtnAxis34.isChecked():
+                self.axisGroup = [3, 4]
+                self.StrongBodyLabel_2.setText("Axis3 Motion (mm/deg)")
+                self.StrongBodyLabel.setText("Axis4 Motion (mm/deg)")
+            elif self.rbtnAxis56.isChecked():
+                self.axisGroup = [5, 6]
+                self.StrongBodyLabel_2.setText("Axis5 Motion (mm/deg)")
+                self.StrongBodyLabel.setText("Axis6 Motion (mm/deg)")
             self.control = Zmotion(self.motion)
             self.axis = [Axis(self.control.handle, i) for i in self.axisGroup]
-            # if self.delay == "127.0.0.1":
-            #     delay = DelayControl(self.delay, 5002)
-            # else:
-            #     delay = DelayControl(self.delay)
-            # acquisition = DataCollection(self.device)
+            self.axis[0].speed = self.dspinXspeed.value()
+            self.axis[1].speed = self.dspinYspeed.value()
         except:
             self.createTopRightInfoBar('error','Error', 'Please check the connection of the device')
         else:
-            # delay.close()
-            # acquisition.close()
-            self.btnLink.setEnabled(False)
-            self.createTopRightInfoBar('success',"Info", "Link Start")
+            self.createTopRightInfoBar('success',"Info", "AxisGroup"+str(self.axisGroup)+"Link Success")
+            self.SimpleCardWidget_7.setEnabled(True)
+            self.SimpleCardWidget_8.setEnabled(True)
+            self.timer.start(1000)
+
+    def axisMove(self):
+        try:
+            self.axis[0].speed = self.x_speed
+            self.axis[1].speed = self.y_speed
+        except:
+            self.createTopRightInfoBar('warning','Warning', 'Please check the connection of the device')
+        else:
+            if self.btnGo1.isHover:
+                if self.dspinAbsPos1.value() <= 15 and self.dspinAbsPos1.value() >= -15:
+                    self.axis[0].move(self.dspinAbsPos1.value())
+                else:
+                    self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
+            elif self.btnL1.isHover:
+                if self.axis[0].dpos - self.dspinStep1.value() >= -15:
+                    self.axis[0].step(-self.dspinStep1.value())
+                else:
+                    self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
+            elif self.btnR1.isHover:
+                if self.axis[0].dpos + self.dspinStep1.value() <= 15:
+                    self.axis[0].step(self.dspinStep1.value())
+                else:
+                    self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
+            elif self.btnGo2.isHover:
+                if self.dspinAbsPos2.value() <= 15 and self.dspinAbsPos2.value() >= -15:
+                    self.axis[1].move(self.dspinAbsPos2.value())
+                else:
+                    self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
+            elif self.btnL2.isHover:
+                if self.axis[1].dpos - self.dspinStep2.value() >= -15:
+                    self.axis[1].step(-self.dspinStep2.value())
+                else:
+                    self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
+            elif self.btnR2.isHover:
+                if self.axis[1].dpos + self.dspinStep2.value() <= 15:
+                    self.axis[1].step(self.dspinStep2.value())
+                else:
+                    self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
+            elif self.btnCancelMotion.isHover:
+                self.axis[0].cancel()
+                self.axis[1].cancel()
+                self.createTopRightInfoBar('info', 'Info', 'All axes have been stopped')
+            elif self.btnHome.isHover:
+                self.axis[0].move(0)
+                self.axis[1].move(0)
+
+    def watchPos(self):
+        if self.axis[0].idle == 0:
+            self.btnSta1.setIcon(FIF.PLAY_SOLID)
+            self.btnSta1.setText("Runing")
+        else:
+            self.btnSta1.setIcon(FIF.PAUSE_BOLD)
+            self.btnSta1.setText("Standby")
+        if self.axis[1].idle == 0:
+            self.btnSta2.setIcon(FIF.PLAY_SOLID)
+            self.btnSta2.setText("Runing")
+        else:
+            self.btnSta2.setIcon(FIF.PAUSE_BOLD)
+            self.btnSta2.setText("Standby")
+        self.labelPos1.setText(str(round(self.axis[0].dpos,2)))
+        self.labelPos2.setText(str(round(self.axis[1].dpos,2)))
 
     def createTopRightInfoBar(self, infoClass, title, text):
         if infoClass == 'warning':
@@ -322,19 +420,9 @@ class linerscan(QWidget, Ui_Form1):
             )
 
     def qpdebug(self):
-        self.canvas3.ax1.clear()
-        print('d')
-        result = np.load('result.npy')
-        X, Y = np.meshgrid(self.x_sequence,self.y_sequence2)
-        f_seq_array = np.array(result.amp)
-        # print(data.f[np.where((data.f-self.f0) == min(abs(data.f-self.f0)))],np.where((data.f-self.f0) == -min(abs(data.f-self.f0))))
-        fN=123
-        f0_seq = (f_seq_array[:, fN])
-        f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
-
-        self.canvas3.ax1.pcolor(abs(f0_plane))
-        self.canvas3.fig.tight_layout()
-        self.canvas3.draw()
+        self.canvas1.ax1.clear()
+        self.canvas1.fig.tight_layout()
+        self.canvas1.draw()
 
     def startScan(self):
         # for j in range(5,5 + int(self.ypos.value())):
@@ -410,7 +498,8 @@ class linerscan(QWidget, Ui_Form1):
                         self.x_speed,
                         self.y_speed,
                         self.device,
-                        self.axisGroup
+                        self.axisGroup,
+                        self.channel
                         )
         worker.signals.result.connect(lambda: self.getResult(worker.result))
         # worker.signals.finished.connect(self.thread_complete)
@@ -551,19 +640,30 @@ class linerscan(QWidget, Ui_Form1):
             self.canvas2.ax1.patch.set_facecolor('#323232')
 
         self.canvas.ax1.plot(data.t, data.mat[-1])
-        self.canvas.fig.suptitle('[Peak to Peak: %.2f Vpp]' % (np.max(data.mat[-1]) - np.min(data.mat[-1])))
+        self.canvas.ax1.set_title("T-domain"+'  '+'[Vpp: %.2f]' % (np.max(data.mat[-1]) - np.min(data.mat[-1])))
+        self.canvas.ax1.set_xlabel("Time(ps)")
+        self.canvas.ax1.set_ylabel("Voltage")
+
+        self.canvas1.ax1.set_title("Mag")
+        self.canvas1.ax1.set_xlabel("Frequency(THz)")
+        self.canvas2.ax1.set_title("Pha")
+        self.canvas2.ax1.set_xlabel("Frequency(THz)")
 
         if self.swMag.isChecked():
             self.canvas1.ax1.plot(data.f, 10 ** (data.amp[-1][0:len(data.f)] / 20))
             self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 11, 5))
+            self.canvas1.ax1.set_ylabel("Magnitude(a.u)")
         else:
             self.canvas1.ax1.plot(data.f, data.amp[-1][0:len(data.f)])
             self.canvas1.ax1.xaxis.set_ticks(np.arange(0, 11, 5))
+            self.canvas1.ax1.set_ylabel("Magnitude(dB)")
 
         if self.swPha.isChecked():
-            self.canvas2.ax1.plot(data.f, data.pha[-1][0:len(data.f)] / 180 * np.pi)
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]))
+            self.canvas2.ax1.set_ylabel("Phase(deg)")
         else:
-            self.canvas2.ax1.plot(data.f, data.pha[-1][0:len(data.f)])
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]) / 180 * np.pi)
+            self.canvas2.ax1.set_ylabel("Phase(rad)")
 
         X, Y = np.meshgrid(self.x_sequence,self.y_sequence2)
         f_seq_array = 10 ** (data.amp[:,0:len(data.f)] / 20)
@@ -588,12 +688,25 @@ class linerscan(QWidget, Ui_Form1):
         if len(f0_seq) == len(self.y_sequence) * len(self.x_sequence):
             np.savetxt('幅值场图.txt',f0_plane)
             np.savetxt('相位场图.txt',f0_plane1)
-        self.canvas3.ax1.pcolor(X, Y, np.abs(f0_plane))
-        self.canvas4.ax1.pcolor(X, Y, np.abs(f0_plane1))
 
-        # self.canvas1.fig.suptitle("F-Domain")
-        # self.canvas1.fig.supxlabel("Frequency (THz)")
-        # self.canvas1.fig.supylabel("Magnitude (dB)")
+        im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_plane), shading='nearest', cmap='gist_heat')
+        cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
+        cbar = self.canvas3.fig.colorbar(im, cax=cax)
+        self.canvas3.ax1.set_title('Amplitude Diagram')
+        self.canvas3.ax1.set_xlabel('scanXPos(mm/deg)')
+        self.canvas3.ax1.set_ylabel('scanYPos(mm/deg)')
+        self.canvas3.ax1.set_aspect('equal')
+        self.canvas3.ax1.minorticks_on()
+
+        im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_plane1), shading='nearest', cmap='jet')
+        cax1 = self.canvas4.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas4.ax1.transAxes)
+        cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1)
+        self.canvas4.ax1.set_title('Phase Diagram')
+        self.canvas4.ax1.set_xlabel('scanXPos(mm/deg)')
+        self.canvas4.ax1.set_ylabel('scanYPos(mm/deg)')
+        self.canvas4.ax1.set_aspect('equal')
+        self.canvas4.ax1.minorticks_on()
+
         self.canvas.ax1.xaxis.grid()
         self.canvas.ax1.yaxis.grid()
         self.canvas1.ax1.xaxis.grid()
@@ -602,14 +715,14 @@ class linerscan(QWidget, Ui_Form1):
         self.canvas2.ax1.yaxis.grid()
 
         self.canvas.fig.tight_layout()
-        self.canvas.draw()
         self.canvas1.fig.tight_layout()
-        self.canvas1.draw()
         self.canvas2.fig.tight_layout()
-        self.canvas2.draw()
         self.canvas3.fig.tight_layout()
-        self.canvas3.draw()
         self.canvas4.fig.tight_layout()
+        self.canvas.draw()
+        self.canvas1.draw()
+        self.canvas2.draw()
+        self.canvas3.draw()
         self.canvas4.draw()
 
         self.xylim = [self.canvas.ax1.get_xlim(),self.canvas.ax1.get_ylim()]
@@ -629,45 +742,54 @@ class linerscan(QWidget, Ui_Form1):
                     data.mat,
                     fmt="%.6f", delimiter='\t')
 
-
-    def pageSetting(self):
-        self.stackedWidget.setCurrentIndex(0)
-
-    def pageOperation(self):
-        self.stackedWidget.setCurrentIndex(1)
-
-    def pageAxis(self):
-        self.stackedWidget.setCurrentIndex(3)
-
-    def pageDev(self):
-        self.stackedWidget.setCurrentIndex(2)
-
     def stopThread(self):
         global STOP
         STOP = True
 
     def stopThreadAfter(self):
-        global STOP
-        self.axis[0].cancel()
-        self.axis[1].cancel()
-        self.ProgressBar.setValue(0)
-        self.CardWidget_2.deleteLater()
-        self.CardWidget_2 = CardWidget(self.page_10)
-        self.CardWidget_2.setObjectName("CardWidget_2")
-        self.verticalLayout_12.addWidget(self.CardWidget_2)
-        self.canvas.ax1.clear()
-        self.canvas1.ax1.clear()
-        self.canvas2.ax1.clear()
-        if self.SwitchButton.isChecked():
-            self.canvas.ax1.patch.set_facecolor('#323232')
-            self.canvas1.ax1.patch.set_facecolor('#323232')
-            self.canvas2.ax1.patch.set_facecolor('#323232')
-        self.canvas.draw()
-        self.canvas1.draw()
-        self.canvas2.draw()
-        STOP = False
-        self.btnStop.setEnabled(False)
-        self.btnHome.setEnabled(True)
+        """
+        停止运动轴的线程后进行相关的界面和状态更新。
+
+        全局变量 STOP 被用来控制线程的停止状态。此函数尝试取消两个轴的运动，
+        如果成功，则更新用户界面，包括进度条重置、删除旧的卡片视图、创建新的卡片视图、
+        清除画布内容以及更新按钮状态。如果在尝试取消轴运动时发生异常，
+        则会显示警告信息。
+
+        参数:
+        self - 对象自身的引用。
+
+        返回值:
+        无
+        """
+        global STOP  # 访问全局变量STOP以控制线程
+
+        try:
+            self.axis[0].cancel()  # 尝试取消第一个轴的运动
+            self.axis[1].cancel()  # 尝试取消第二个轴的运动
+        except:
+            # 如果在取消轴运动时发生异常，显示警告信息
+            self.createTopRightInfoBar('warning', 'Warning', '请连接电机再测试停止功能')
+        else:
+            # 如果成功取消轴的运动，进行下面的界面和状态更新
+            self.ProgressBar.setValue(0)  # 重置进度条
+            self.CardWidget_2.deleteLater()  # 删除当前的卡片视图
+            self.CardWidget_2 = CardWidget(self.page_10)  # 创建新的卡片视图
+            self.CardWidget_2.setObjectName("CardWidget_2")
+            self.verticalLayout_12.addWidget(self.CardWidget_2)  # 将新卡片视图添加到布局中
+            self.canvas.ax1.clear()  # 清除第一个画布的内容
+            self.canvas1.ax1.clear()  # 清除第二个画布的内容
+            self.canvas2.ax1.clear()  # 清除第三个画布的内容
+            if self.SwitchButton.isChecked():
+                # 如果切换按钮处于选中状态，设置画布背景色为灰色
+                self.canvas.ax1.patch.set_facecolor('#323232')
+                self.canvas1.ax1.patch.set_facecolor('#323232')
+                self.canvas2.ax1.patch.set_facecolor('#323232')
+            self.canvas.draw()  # 更新第一个画布的显示
+            self.canvas1.draw()  # 更新第二个画布的显示
+            self.canvas2.draw()  # 更新第三个画布的显示
+            STOP = False  # 重置停止标志为False
+            self.btnStop.setEnabled(False)  # 禁用停止按钮
+            self.btnHome.setEnabled(True)  # 启用回家按钮
 
     def saveResult(self):
         if self.result:
@@ -685,7 +807,6 @@ class linerscan(QWidget, Ui_Form1):
             np.savetxt(filedir + '/yourResult.txt', Sig, fmt='%.6f', delimiter='\t')
         else:
             self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
-
 
     def loadResult(self):
         fileName, _ = QFileDialog.getOpenFileName(self, "选取文件", os.getcwd(),
@@ -715,6 +836,7 @@ class linerscan(QWidget, Ui_Form1):
         self.delay = self.comboDelay.currentText()
         self.motion = self.comboMotion.currentText()
         self.device = self.comboDevice.currentText()
+        self.channel = self.comboChannel.currentIndex() + 1
         print(self.delay)
         print(self.motion)
         print(self.device)
@@ -723,31 +845,6 @@ class linerscan(QWidget, Ui_Form1):
             self.IsOpenExtClock = True
         else:
             self.IsOpenExtClock = False
-
-    def home(self):
-        self.axis[0].move(0)
-        self.axis[1].move(0)
-        # self.createTopRightInfoBar('warning','warning','Please check the axis')
-        self.ProgressBar.setValue(0)
-        self.CardWidget_2.deleteLater()
-        self.CardWidget_2 = CardWidget(self.page_10)
-        self.CardWidget_2.setObjectName("CardWidget_2")
-        self.verticalLayout_12.addWidget(self.CardWidget_2)
-        self.canvas.ax1.clear()
-        self.canvas1.ax1.clear()
-        self.canvas2.ax1.clear()
-        self.canvas3.ax1.clear()
-        if self.SwitchButton.isChecked():
-            self.canvas.ax1.patch.set_facecolor('#323232')
-            self.canvas1.ax1.patch.set_facecolor('#323232')
-            self.canvas2.ax1.patch.set_facecolor('#323232')
-            self.canvas3.ax1.patch.set_facecolor('#323232')
-        self.canvas.draw()
-        self.canvas1.draw()
-        self.canvas2.draw()
-        self.canvas3.draw()
-        self.btnHome.setEnabled(False)
-
     def lengthAssert(self):
         self.dspinLength.setRange(0, 400 - self.dspinOffset.value())
         self.length = self.dspinLength.value()
@@ -775,13 +872,18 @@ class linerscan(QWidget, Ui_Form1):
             pass
 
     def NForFFAssert(self):
-        if self.swFForNF.isChecked():
+        if self.rbtnAxis12.isChecked():
             self.axisGroup = [1, 2]
-            print(self.axisGroup)
-        else:
+            self.StrongBodyLabel_2.setText("Axis1 Motion (mm/deg)")
+            self.StrongBodyLabel.setText("Axis2 Motion (mm/deg)")
+        elif self.rbtnAxis34.isChecked():
             self.axisGroup = [3, 4]
-            print(self.axisGroup)
-        pass
+            self.StrongBodyLabel_2.setText("Axis3 Motion (mm/deg)")
+            self.StrongBodyLabel.setText("Axis4 Motion (mm/deg)")
+        elif self.rbtnAxis56.isChecked():
+            self.axisGroup = [5, 6]
+            self.StrongBodyLabel_2.setText("Axis5 Motion (mm/deg)")
+            self.StrongBodyLabel.setText("Axis6 Motion (mm/deg)")
 
     def XstartAssert(self):
         self.x_start = self.spinXstart.value()
@@ -833,24 +935,6 @@ class linerscan(QWidget, Ui_Form1):
             self.linePath.setEnabled(False)
             self.btnSelectPath.setEnabled(False)
             self.btnOpenPath.setEnabled(False)
-
-    # def renderEchart(self, x, y):
-    #     c = (
-    #         Line(
-    #             init_opts=opts.InitOpts(
-    #                 animation_opts=opts.AnimationOpts(
-    #                     animation=False,
-    #                     animation_delay=1000, animation_easing="elasticOut"
-    #                 )
-    #             )
-    #         )
-    #         .add_xaxis(x)
-    #         .add_yaxis("A", y, is_symbol_show=False)
-    #         # .set_global_opts(title_opts=opts.TitleOpts(title="Bar-动画配置", subtitle="AnimationOpts"))
-    #         .set_series_opts(label_opts=opts.LabelOpts(is_show=False))
-    #         .render("animation.html")
-    #     )
-    #     self.browser.load(QUrl("D:/FinancialMedia/CodeCraft/PYCHARM/NeoTHz/animation.html"))
 
     def showSBRFlyout(self):
         view = FlyoutView(
@@ -1061,6 +1145,7 @@ class linerscan(QWidget, Ui_Form1):
             self.canvas2.ax1.set_ylim(self.xylim2[1][0], self.xylim2[1][1])
             self.canvas2.draw_idle()  # 绘图动作实时反映在图像上
 
+
 class WorkerSignals(QObject):
     finished = pyqtSignal()
     error = pyqtSignal(tuple)
@@ -1101,6 +1186,7 @@ class Worker(QRunnable):
         self.yspeed = args[15]
         self.device = args[16]
         self.axisGroup = args[17]
+        self.channel = args[18]
         self.read_count = 1
         self.data = DataPlot
         self.data_buffer = []
@@ -1170,7 +1256,7 @@ class Worker(QRunnable):
                         self.signals.youCanStop.emit()
                         self.axIndex = [i,j]
                         print('single')
-                        self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock)
+                        self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock, self.channel)
                         self.signals.axIdle.emit(self.axIndex[0],self.axIndex[1])
                         self.data.mat.append(self.data_buffer)
                         self.data.fft()
@@ -1223,9 +1309,9 @@ class Worker(QRunnable):
         #     self.signals.stop.emit()
 
 
-async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtClock):
+async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtClock, channel):
 
-    acquisition.channel = 2
+    acquisition.channel = channel
     if IsOpenExtClock:
         acquisition.terminal = 3
     acquisition.edge = Edge.RISING
@@ -1254,9 +1340,9 @@ async def task_exec(delay: DelayControl, acquisition: DataCollection):
     print("<Info> Task Completed.")
 
 
-def main_task(delay, acquisition, IsOpenExtClock):
+def main_task(delay, acquisition, IsOpenExtClock, channel):
     import asyncio
-    asyncio.run(task_init(delay, acquisition, IsOpenExtClock))
+    asyncio.run(task_init(delay, acquisition, IsOpenExtClock, channel))
     asyncio.run(task_exec(delay, acquisition))
     return np.mean(acquisition.buffer, axis=0)
 
