@@ -42,7 +42,7 @@ class submain(QWidget, Ui_Form):
         self.motion = "10.168.1.11"
         self.magunit = 0
         self.phaunit = 0
-        self.IsOpenExtClock = False
+        self.IsOpenExtClock = True
         self.ISAutoBak = False
         self.result = []
         self.bakPath = os.path.abspath('.') + '\\.temp'
@@ -73,6 +73,7 @@ class submain(QWidget, Ui_Form):
         self.linePath.setText(self.bakPath)
         self.btnLoad.setVisible(False)
         self.btnExit.setVisible(False)
+        self.togbtnClock.setChecked(True)
         self.threadpool = QThreadPool()
 
         self.ProgressBar.setVisible(True)
@@ -383,16 +384,11 @@ class submain(QWidget, Ui_Form):
 
         if self.iter == len(data.mat):
             self.result = data.mat
-            if self.bakPath == os.path.abspath('.') + '\\.temp':
-                np.savetxt(
-                    os.path.abspath('.') + '\\.temp' + '/' + time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt",
-                    data.mat,
-                    fmt="%.6f", delimiter='\t')
-            else:
-                np.savetxt(
-                    self.bakPath + '/' + time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt",
-                    data.mat,
-                    fmt="%.6f", delimiter='\t')
+            self.filename = time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt"
+            np.savetxt(
+                os.path.abspath('.') + '\\.temp' + '/' + self.filename,
+                data.mat,
+                fmt="%.6f", delimiter='\t')
 
     def pageSetting(self):
         self.stackedWidget.setCurrentIndex(0)
@@ -437,7 +433,7 @@ class submain(QWidget, Ui_Form):
             # Sig = np.array([t, ts, fp, fsp])
             Sig = np.array(self.result)
             filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", os.getcwd())
-            np.savetxt(filedir + '/yourResult.txt', Sig, fmt='%.6f', delimiter='\t')
+            np.savetxt(filedir + '\\' + self.filename, Sig, fmt='%.6f', delimiter='\t')
         else:
             self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
 

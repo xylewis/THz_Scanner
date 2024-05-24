@@ -25,7 +25,8 @@ class staff(QWidget, Ui_Form2):
         super().__init__(parent=parent)
         self.setupUi(self)
 
-        self.DisplayLabel.setPixmap(QPixmap('logo.png'))
+        self.DisplayLabel.setPixmap(QPixmap('./dll/logo.svg'))
+        # self.DisplayLabel.setText("(++)")
 
         self.powerOn = False
         self.secondCnt = 0
@@ -63,6 +64,7 @@ class staff(QWidget, Ui_Form2):
                 self.sensorData = self.sys_module["sensor"].status
                 if self.sys_module['bias'].status and self.sys_module['laser'].status:
                     self.powerOn = True
+                    self.btnLaunch.setText("POWER OFF")
                 else:
                     self.sys_module['system'].toggle() # 如果系统未启动 此时启动
                     # self.sys_module['laser'].toggle()
@@ -71,7 +73,8 @@ class staff(QWidget, Ui_Form2):
                 self.createBOTTOMInfoBar('error','Error', 'Please check the connection of the device')
             else:
                 self.btnLaunch.setEnabled(False)
-                self.createBOTTOMInfoBar('info',"Info", "冷却时间：10s")
+                self.btnLaunch.setText("POWER OFF")
+                self.createBOTTOMInfoBar('info',"Info", "距下一次关闭 冷却时间：10s")
                 self.timer.start(1000)
         else:
             try:
@@ -80,7 +83,8 @@ class staff(QWidget, Ui_Form2):
                     # self.sys_module['laser'].toggle()
                     # self.sys_module['bias'].toggle()
                     self.btnLaunch.setEnabled(False)
-                    self.createBOTTOMInfoBar('info', "Info", "冷却时间：10s")
+                    self.btnLaunch.setText("POWER ON")
+                    self.createBOTTOMInfoBar('info', "Info", "距下一次启动 冷却时间：10s")
                 else:
                     pass # 如果系统未启动 跳过
             except:

@@ -21,8 +21,9 @@ class test(SplitFluentWindow):
         super().__init__()
         self.setWindowTitle('THz Capture')
         self.resize(int(800/0.618), 800)
+        self.setWindowFlags(Qt.WindowMinimizeButtonHint)
+
         # self.windowFlags(Qt.FramelessWindowHint)
-        # self.setWindowIcon(QIcon(':/qfluentwidgets/images/logo.png'))
 
         self.setAttribute(Qt.WA_TranslucentBackground)
         # 设置背景色
@@ -36,7 +37,8 @@ class test(SplitFluentWindow):
         self.linerscan = linerscan(self)
         self.addSubInterface(self.staff, FluentIcon.SPEED_MEDIUM, 'sensor')
         self.addSubInterface(self.submain, FluentIcon.ASTERISK, 'singleScan')
-        self.addSubInterface(self.linerscan, FluentIcon.MOVE, 'linerScan')
+        self.addSubInterface(self.linerscan, FluentIcon.MOVE, 'linearScan')
+        self.setWindowIcon(QIcon('./dll/ico1.ico'))
 
 
     def center(self):  # 定义一个函数使得窗口居中显示
