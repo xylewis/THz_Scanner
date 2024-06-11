@@ -26,7 +26,20 @@ class staff(QWidget, Ui_Form2):
         self.setupUi(self)
 
         self.DisplayLabel.setPixmap(QPixmap('./dll/logo.svg'))
-        # self.DisplayLabel.setText("(++)")
+        self.HyperlinkLabel.setText("帝尔时代（天津）科技有限公司")
+        self.HyperlinkLabel.setUrl('http://www.thzphotonics.com/sy')
+
+        try:
+            self.control = Zmotion(host='10.168.1.11')
+            self.sys_module = {
+                "sensor": Sensor(self.control.handle),
+            }
+            self.sensorData = self.sys_module["sensor"].status
+        except:
+            self.createBOTTOMInfoBar('error', 'Error', 'Please check the connection of the device')
+        else:
+            self.lineTemp.setText(str(self.sensorData[0]/10 )  + str(' ℃'))
+            self.lineHumi.setText(str(self.sensorData[1]/10 ) + str(' %'))
 
         self.powerOn = False
         self.secondCnt = 0
@@ -133,8 +146,8 @@ class staff(QWidget, Ui_Form2):
             self.powerOn = False
 
         self.sensorData = self.sys_module["sensor"].status
-        self.lineHumi.setText(str(self.sensorData[0]/10))
-        self.lineTemp.setText(str(self.sensorData[1]/10))
+        self.lineTemp.setText(str(self.sensorData[0] / 10) + str(' ℃'))
+        self.lineHumi.setText(str(self.sensorData[1] / 10) + str(' %'))
 
     def createBOTTOMInfoBar(self, infoClass, title, text):
         if infoClass == 'warning':

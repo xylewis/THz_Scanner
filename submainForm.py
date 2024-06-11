@@ -1,6 +1,8 @@
 # coding:utf-8
 import os
 import time
+import json
+import math
 
 import numpy as np
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl
@@ -48,6 +50,14 @@ class submain(QWidget, Ui_Form):
         self.bakPath = os.path.abspath('.') + '\\.temp'
         if not os.path.exists(self.bakPath):
             os.makedirs(self.bakPath)
+        self.config = {
+            "userPath": "",
+            "other": ""
+        }
+        if not os.path.exists('config.json'):
+            with open('config.json', 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, ensure_ascii=False, indent=4)
+        self.confPath = os.path.abspath('.') + '\\config.json'
         self.channel = 1
 
         self.togbtnClock.setChecked(False)
@@ -134,8 +144,8 @@ class submain(QWidget, Ui_Form):
         self.segOperation = PivotItem('Operation')
         self.segDev = PivotItem('Dev')
         self.SegmentedWidget.insertWidget(0, 'Setting', self.segSetting, onClick=self.pageSetting)
-        self.SegmentedWidget.insertWidget(1, 'Operation', self.segOperation, onClick=self.pageOperation)
-        self.SegmentedWidget.insertWidget(2, 'Dev', self.segDev, onClick=self.pageDev)
+        # self.SegmentedWidget.insertWidget(1, 'Operation', self.segOperation, onClick=self.pageOperation)
+        # self.SegmentedWidget.insertWidget(2, 'Dev', self.segDev, onClick=self.pageDev)
         self.SegmentedWidget.setItemFontSize(12)
         self.SegmentedWidget.setCurrentItem('Setting')
         self.stackedWidget.setCurrentIndex(0)
@@ -359,10 +369,10 @@ class submain(QWidget, Ui_Form):
             self.canvas1.ax1.set_ylabel("Magnitude(dB)")
 
         if self.swPha.isChecked():
-            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]))
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)], period = 360))
             self.canvas2.ax1.set_ylabel("Phase(deg)")
         else:
-            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]) / 180 * np.pi)
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)], period = 360) / 180 * np.pi)
             self.canvas2.ax1.set_ylabel("Phase(rad)")
 
         self.canvas.ax1.xaxis.grid()
@@ -422,18 +432,23 @@ class submain(QWidget, Ui_Form):
 
     def saveResult(self):
         if self.result:
-            # t = self.result[0]
-            # ts = self.result[1]
-            # f = self.result[2]
-            # fs = self.result[3]
-            # fp = [0 for i in range(len(t))]
-            # fsp = [0 for i in range(len(t))]
-            # fp[0:len(f)] = f
-            # fsp[0:len(fs)] = fs
-            # Sig = np.array([t, ts, fp, fsp])
+            openPath = readJson('userPath', self.confPath)
+            if os.path.exists(openPath):
+                pass
+            else:
+                openPath = self.bakPath
             Sig = np.array(self.result)
-            filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", os.getcwd())
-            np.savetxt(filedir + '\\' + self.filename, Sig, fmt='%.6f', delimiter='\t')
+            t = np.arange(0, self.length, 0.02).reshape([1, Sig.shape[1]])
+            Sig = np.concatenate((t, Sig), axis=0)
+            filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", openPath)
+            header = 'ts' +'\t'+ '\t'.join(['Iter{}'.format(i + 1) for i in range(Sig.shape[0] - 1)]) + '\n'
+            with open(filedir + '\\' + self.filename, 'w') as f:
+                f.write(header)
+                np.savetxt(f, Sig.T, fmt="%.6f", delimiter='\t')
+            if filedir == openPath:
+                pass
+            else:
+                modifyJson("userPath", filedir, 'config.json')
         else:
             self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
 
@@ -817,16 +832,16 @@ class Worker(QRunnable):
         global STOP
         if self.delay == "127.0.0.1":
             delay = DelayControl(self.delay, 5002)
-            acquisition = DataCollection("Dev3")
+            acquisition = DataCollection("Dev1")
         else:
             delay = DelayControl(self.delay)
-            acquisition = DataCollection("Dev3")
+            acquisition = DataCollection("Dev1")
         delay.offset = self.offset  # Sampling Offset (ps)
         delay.length = self.length  # Sampling Length (ps)
         delay.interval = 0.02  # Sampling Interval (ps)
         delay.iteration = self.ave  # Iteration Average
 
-        self.data = DataPlot(delay.interval, n=8192)
+        self.data = DataPlot(delay.interval, n=2 ** math.ceil(math.log2(self.length / 0.02)))
         self.data.t = self.length
         self.data.f = 10
 
@@ -944,3 +959,54 @@ def main_task(delay, acquisition, IsOpenExtClock, channel):
     asyncio.run(task_init(delay, acquisition, IsOpenExtClock, channel))
     asyncio.run(task_exec(delay, acquisition))
     return np.mean(acquisition.buffer, axis=0)
+
+def readJson(key_name, json_path):
+    # 检查文件是否存在
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"文件 {json_path} 不存在。")
+
+        # 尝试读取JSON文件
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)  # 解析JSON文件为Python字典
+
+            # 检查键名是否存在
+            if key_name in data:
+                return data[key_name]  # 返回键对应的值
+            else:
+                raise KeyError(f"键 {key_name} 在JSON文件中不存在。")
+
+    except json.JSONDecodeError:
+        raise ValueError(f"文件 {json_path} 不是有效的JSON文件。")
+
+    except IOError:
+        raise IOError(f"读取文件 {json_path} 时发生错误。")
+
+def modifyJson(key_name, new_value, json_path):
+    # 检查文件是否存在
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"文件 {json_path} 不存在。")
+
+        # 尝试读取JSON文件
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)  # 解析JSON文件为Python字典
+
+        # 检查键名是否存在，如果不存在则可以选择添加或抛出异常
+        if key_name in data:
+            data[key_name] = new_value  # 修改键对应的值
+        else:
+            # 如果你想在键不存在时添加它，可以取消下一行的注释
+            # data[key_name] = new_value
+            raise KeyError(f"键 {key_name} 在JSON文件中不存在。")
+
+            # 将修改后的字典写回JSON文件
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        print(f"文件 {json_path} 修改成功。")
+
+    except json.JSONDecodeError:
+        raise ValueError(f"文件 {json_path} 不是有效的JSON文件。")
+
+    except IOError:
+        raise IOError(f"读取或写入文件 {json_path} 时发生错误。")

@@ -1,6 +1,9 @@
 # coding:utf-8
 import os
 import time
+import json
+import pandas as pd
+import math
 
 import numpy as np
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl
@@ -71,7 +74,7 @@ class linerscan(QWidget, Ui_Form1):
         self.ave = 10
         self.delay = "10.168.1.16"
         self.motion = "10.168.1.11"
-        self.device = "Dev3"
+        self.device = "Dev1"
         self.magunit = 0
         self.phaunit = 0
         self.IsOpenExtClock = True
@@ -80,6 +83,14 @@ class linerscan(QWidget, Ui_Form1):
         self.bakPath = os.path.abspath('.') + '\\.temp'
         if not os.path.exists(self.bakPath):
             os.makedirs(self.bakPath)
+        self.config = {
+            "userPath": "",
+            "other": ""
+        }
+        if not os.path.exists('config.json'):
+            with open('config.json', 'w', encoding='utf-8') as f:
+                json.dump(self.config, f, ensure_ascii=False, indent=4)
+        self.confPath = os.path.abspath('.') + '\\config.json'
 
         self.togbtnClock.setChecked(False)
         self.comboDelay.addItems(["127.0.0.1", "10.168.1.16"])
@@ -89,7 +100,7 @@ class linerscan(QWidget, Ui_Form1):
         self.comboChannel.addItems(["Channel1","Channel2"])
         self.comboDelay.setCurrentIndex(1)
         self.comboMotion.setCurrentIndex(1)
-        self.comboDevice.setCurrentIndex(2)
+        self.comboDevice.setCurrentIndex(0)
         self.dspinLength.setRange(0, 400 - self.dspinOffset.value())
         self.dspinLength.setValue(self.length)
         self.dspinOffset.setRange(-400, 400)
@@ -114,7 +125,17 @@ class linerscan(QWidget, Ui_Form1):
         self.dspinXspeed.setMaximum(3.0)
         self.dspinYspeed.setValue(self.y_speed)
         self.dspinYspeed.setMaximum(3.0)
+        self.spinXstart.setRange(-400, 400)
+        self.spinXend.setRange(-400, 400)
+        self.spinYstart.setRange(-400, 400)
+        self.spinYend.setRange(-400, 400)
         self.dspinFreq.setValue(self.f0)
+        self.spinXstart.setRange(-15, 15)
+        self.spinXend.setRange(-15, 15)
+        self.spinYstart.setRange(-15, 15)
+        self.spinYend.setRange(-15, 15)
+        self.dspinAbsPos1.setRange(-15, 15)
+        self.dspinAbsPos2.setRange(-15, 15)
         self.threadpool = QThreadPool()
 
         self.ProgressBar.setVisible(True)
@@ -131,6 +152,7 @@ class linerscan(QWidget, Ui_Form1):
         self.rbtnAxis34.setChecked(True)
         self.StrongBodyLabel.setText("SelectedAxis#1")
         self.StrongBodyLabel_2.setText("SelectedAxis#2")
+        self.swFForNF.setChecked(True)
 
         self.canvas = self.widget.canvas
         self.canvas.ax1 = self.canvas.fig.add_subplot(111)
@@ -204,10 +226,10 @@ class linerscan(QWidget, Ui_Form1):
         self.SegmentedWidget.insertWidget(0, 'Motion', self.segSetting, onClick=lambda: self.stackedWidget.setCurrentIndex(4))
         self.SegmentedWidget.insertWidget(1, 'AxisScan', self.segOperation, onClick=lambda: self.stackedWidget.setCurrentIndex(3))
         self.SegmentedWidget.insertWidget(2, 'DelayScan', self.segAxis, onClick=lambda: self.stackedWidget.setCurrentIndex(0))
-        self.SegmentedWidget.insertWidget(3, 'Dev', self.segDev, onClick=lambda: self.stackedWidget.setCurrentIndex(2))
+        # self.SegmentedWidget.insertWidget(3, 'Dev', self.segDev, onClick=lambda: self.stackedWidget.setCurrentIndex(2))
         self.SegmentedWidget.setItemFontSize(12)
-        self.SegmentedWidget.setCurrentItem('DelayScan')
-        self.stackedWidget.setCurrentIndex(0)
+        self.SegmentedWidget.setCurrentItem('Motion')
+        self.stackedWidget.setCurrentIndex(4)
 
         # self.segScan = PivotItem('Outline')
         self.segRuntime = PivotItem('Runtime')
@@ -286,6 +308,8 @@ class linerscan(QWidget, Ui_Form1):
         self.btnR2.clicked.connect(self.axisMove)
         self.btnCancelMotion.clicked.connect(self.axisMove)
         self.btnHome.clicked.connect(self.axisMove)
+        self.btnSlot.clicked.connect(self.savePara)
+        self.btnRestore.clicked.connect(self.loadPara)
 
         self.timer = QTimer()
         self.timer.timeout.connect(self.watchPos)
@@ -325,32 +349,32 @@ class linerscan(QWidget, Ui_Form1):
             self.createTopRightInfoBar('warning','Warning', 'Please check the connection of the device')
         else:
             if self.btnGo1.isHover:
-                if self.dspinAbsPos1.value() <= 15 and self.dspinAbsPos1.value() >= -15:
+                if self.dspinAbsPos1.value() <= 15 and self.dspinAbsPos1.value() >= -15 or not self.swFForNF.isChecked():
                     self.axis[0].move(self.dspinAbsPos1.value())
                 else:
                     self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
             elif self.btnL1.isHover:
-                if self.axis[0].dpos - self.dspinStep1.value() >= -15:
+                if self.axis[0].dpos - self.dspinStep1.value() >= -15 or not self.swFForNF.isChecked():
                     self.axis[0].step(-self.dspinStep1.value())
                 else:
                     self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
             elif self.btnR1.isHover:
-                if self.axis[0].dpos + self.dspinStep1.value() <= 15:
+                if self.axis[0].dpos + self.dspinStep1.value() <= 15 or not self.swFForNF.isChecked():
                     self.axis[0].step(self.dspinStep1.value())
                 else:
                     self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
             elif self.btnGo2.isHover:
-                if self.dspinAbsPos2.value() <= 15 and self.dspinAbsPos2.value() >= -15:
+                if self.dspinAbsPos2.value() <= 15 and self.dspinAbsPos2.value() >= -15 or not self.swFForNF.isChecked():
                     self.axis[1].move(self.dspinAbsPos2.value())
                 else:
                     self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
             elif self.btnL2.isHover:
-                if self.axis[1].dpos - self.dspinStep2.value() >= -15:
+                if self.axis[1].dpos - self.dspinStep2.value() >= -15 or not self.swFForNF.isChecked():
                     self.axis[1].step(-self.dspinStep2.value())
                 else:
                     self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
             elif self.btnR2.isHover:
-                if self.axis[1].dpos + self.dspinStep2.value() <= 15:
+                if self.axis[1].dpos + self.dspinStep2.value() <= 15 or not self.swFForNF.isChecked():
                     self.axis[1].step(self.dspinStep2.value())
                 else:
                     self.createTopRightInfoBar('warning', 'Warning', 'Please check the motor limit')
@@ -377,6 +401,113 @@ class linerscan(QWidget, Ui_Form1):
             self.btnSta2.setText("Standby")
         self.labelPos1.setText(str(round(self.axis[0].dpos,2)))
         self.labelPos2.setText(str(round(self.axis[1].dpos,2)))
+
+    def savePara(self):
+        json_path = self.confPath
+        # 检查文件是否存在
+        if not os.path.exists(json_path):
+            raise FileNotFoundError(f"文件 {json_path} 不存在。")
+
+            # 尝试读取JSON文件
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)  # 解析JSON文件为Python字典
+
+            data['f0'] = self.f0
+            data['x_start'] = self.x_start
+            data['x_end'] = self.x_end
+            data['x_step'] = self.x_step
+            data['y_start'] = self.y_start
+            data['y_end'] = self.y_end
+            data['y_step'] = self.y_step
+
+            data['length'] = self.length
+            data['offset'] = self.offset
+            data['iter'] = self.iter
+            data['ave'] = self.ave
+            data['channel'] = self.channel
+
+            if self.rbtnAxis12.isChecked():
+                self.axisGroup = [1, 2]
+            elif self.rbtnAxis34.isChecked():
+                self.axisGroup = [3, 4]
+            elif self.rbtnAxis56.isChecked():
+                self.axisGroup = [5, 6]
+            data['axisGroup'] = self.axisGroup
+            data['x_speed'] = self.x_speed
+            data['y_speed'] = self.y_speed
+            data['FForNF'] = 1 if self.swFForNF.isChecked() else 0
+
+            # 将修改后的字典写回JSON文件
+            with open(json_path, 'w', encoding='utf-8') as f:
+                json.dump(data, f, ensure_ascii=False, indent=4)
+            print(f"文件 {json_path} 修改成功。")
+
+        except json.JSONDecodeError:
+            raise ValueError(f"文件 {json_path} 不是有效的JSON文件。")
+
+        except IOError:
+            raise IOError(f"读取或写入文件 {json_path} 时发生错误。")
+
+    def loadPara(self):
+        json_path = self.confPath
+        # 检查文件是否存在
+        if not os.path.exists(json_path):
+            raise FileNotFoundError(f"文件 {json_path} 不存在。")
+            # 尝试读取JSON文件
+        try:
+            with open(json_path, 'r', encoding='utf-8') as f:
+                data = json.load(f)  # 解析JSON文件为Python字典
+
+                self.f0 = data['f0']
+                self.dspinFreq.setValue(self.f0)
+                self.x_start = data['x_start']
+                self.spinXstart.setValue(self.x_start)
+                self.x_end = data['x_end']
+                self.spinXend.setValue(self.x_end)
+                self.x_step = data['x_step']
+                self.spinXstep.setValue(self.x_step)
+                self.y_start = data['y_start']
+                self.spinYstart.setValue(self.y_start)
+                self.y_end = data['y_end']
+                self.spinYend.setValue(self.y_end)
+                self.y_step = data['y_step']
+                self.spinYstep.setValue(self.y_step)
+
+                self.length = data['length']
+                self.dspinLength.setValue(self.length)
+                self.offset = data['offset']
+                self.dspinOffset.setValue(self.offset)
+                self.iter = data['iter']
+                self.spinIter.setValue(self.iter)
+                self.ave = data['ave']
+                self.spinAve.setValue(self.ave)
+                self.channel = data['channel']
+                self.comboChannel.setCurrentIndex(self.channel - 1)
+
+                self.axisGroup = data['axisGroup']
+
+                if self.axisGroup == [3, 4]:
+                    self.rbtnAxis34.setChecked(True)
+                elif self.axisGroup == [1, 2]:
+                    self.rbtnAxis12.setChecked(True)
+                else:
+                    self.rbtnAxis56.setChecked(True)
+
+                self.x_speed = data['x_speed']
+                self.dspinXspeed.setValue(self.x_speed)
+                self.y_speed = data['y_speed']
+                self.dspinYspeed.setValue(self.y_speed)
+                if data['FForNF'] == 1:
+                    self.swFForNF.setChecked(True)
+                else:
+                    self.swFForNF.setChecked(False)
+
+        except json.JSONDecodeError:
+            raise ValueError(f"文件 {json_path} 不是有效的JSON文件。")
+
+        except IOError:
+            raise IOError(f"读取文件 {json_path} 时发生错误。")
 
     def createTopRightInfoBar(self, infoClass, title, text):
         if infoClass == 'warning':
@@ -660,53 +791,89 @@ class linerscan(QWidget, Ui_Form1):
             self.canvas1.ax1.set_ylabel("Magnitude(dB)")
 
         if self.swPha.isChecked():
-            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]))
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)], period = 360))
             self.canvas2.ax1.set_ylabel("Phase(deg)")
         else:
-            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)]) / 180 * np.pi)
+            self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)], period = 360) / 180 * np.pi)
             self.canvas2.ax1.set_ylabel("Phase(rad)")
 
-        X, Y = np.meshgrid(self.x_sequence,self.y_sequence2)
-        f_seq_array = 10 ** (data.amp[:,0:len(data.f)] / 20)
-        f_seq_array1 = (data.pha[:,0:len(data.f)])
-        temp1 = np.where((data.f-self.f0) == min(abs(data.f-self.f0)))
-        temp2 = np.where((data.f-self.f0) == -min(abs(data.f-self.f0)))
-        if len(temp1[0]):
-            fN=temp1[0][0]
-        elif len(temp2[0]):
-            fN=temp2[0][0]
+        if self.swFForNF.isChecked():
+            X, Y = np.meshgrid(self.x_sequence, self.y_sequence2)
+            f_seq_array = 10 ** (data.amp[:,0:len(data.f)] / 20)
+            f_seq_array1 = (data.pha[:,0:len(data.f)])
+            temp1 = np.where((data.f-self.f0) == min(abs(data.f-self.f0)))
+            temp2 = np.where((data.f-self.f0) == -min(abs(data.f-self.f0)))
+            if len(temp1[0]):
+                fN=temp1[0][0]
+            elif len(temp2[0]):
+                fN=temp2[0][0]
+            else:
+                print("no found")
+            f0_seq = (f_seq_array[:, fN])
+            f0_seq1 = (f_seq_array1[:, fN])
+
+            if len(f0_seq) < len(self.y_sequence) * len(self.x_sequence):
+                f0_seq = np.pad(f0_seq,(0,len(self.y_sequence) * len(self.x_sequence)-len(f0_seq)),'constant',constant_values=(0,0))
+                f0_seq1 = np.pad(f0_seq1,(0,len(self.y_sequence) * len(self.x_sequence)-len(f0_seq1)),'constant',constant_values=(0,0))
+
+            f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
+            f0_plane1 = f0_seq1.reshape(len(self.y_sequence), len(self.x_sequence))
+            if len(f0_seq) == len(self.y_sequence) * len(self.x_sequence):
+                np.savetxt('幅值场图.txt',f0_plane)
+                np.savetxt('相位场图.txt',f0_plane1)
+
+            im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_plane), shading='nearest', cmap='gist_heat')
+            cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
+            cbar = self.canvas3.fig.colorbar(im, cax=cax)
+            self.canvas3.ax1.set_title('Amplitude Diagram')
+            self.canvas3.ax1.set_xlabel('scanXPos(mm)')
+            self.canvas3.ax1.set_ylabel('scanYPos(mm)')
+            self.canvas3.ax1.set_aspect('equal')
+            self.canvas3.ax1.minorticks_on()
+
+            im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_plane1), shading='nearest', cmap='jet')
+            cax1 = self.canvas4.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas4.ax1.transAxes)
+            cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1)
+            self.canvas4.ax1.set_title('Phase Diagram')
+            self.canvas4.ax1.set_xlabel('scanXPos(mm)')
+            self.canvas4.ax1.set_ylabel('scanYPos(mm)')
+            self.canvas4.ax1.set_aspect('equal')
+            self.canvas4.ax1.minorticks_on()
         else:
-            print("no found")
-        f0_seq = (f_seq_array[:, fN])
-        f0_seq1 = (f_seq_array1[:, fN])
-
-        if len(f0_seq) < len(self.y_sequence) * len(self.x_sequence):
-            f0_seq = np.pad(f0_seq,(0,len(self.y_sequence) * len(self.x_sequence)-len(f0_seq)),'constant',constant_values=(0,0))
-            f0_seq1 = np.pad(f0_seq1,(0,len(self.y_sequence) * len(self.x_sequence)-len(f0_seq1)),'constant',constant_values=(0,0))
-
-        f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
-        f0_plane1 = f0_seq1.reshape(len(self.y_sequence), len(self.x_sequence))
-        if len(f0_seq) == len(self.y_sequence) * len(self.x_sequence):
-            np.savetxt('幅值场图.txt',f0_plane)
-            np.savetxt('相位场图.txt',f0_plane1)
-
-        im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_plane), shading='nearest', cmap='gist_heat')
-        cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
-        cbar = self.canvas3.fig.colorbar(im, cax=cax)
-        self.canvas3.ax1.set_title('Amplitude Diagram')
-        self.canvas3.ax1.set_xlabel('scanXPos(mm/deg)')
-        self.canvas3.ax1.set_ylabel('scanYPos(mm/deg)')
-        self.canvas3.ax1.set_aspect('equal')
-        self.canvas3.ax1.minorticks_on()
-
-        im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_plane1), shading='nearest', cmap='jet')
-        cax1 = self.canvas4.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas4.ax1.transAxes)
-        cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1)
-        self.canvas4.ax1.set_title('Phase Diagram')
-        self.canvas4.ax1.set_xlabel('scanXPos(mm/deg)')
-        self.canvas4.ax1.set_ylabel('scanYPos(mm/deg)')
-        self.canvas4.ax1.set_aspect('equal')
-        self.canvas4.ax1.minorticks_on()
+            f_seq_array = 10 ** (data.amp[:, 0:len(data.f)] / 20)
+            f_seq_array1 = (data.pha[:, 0:len(data.f)])
+            temp1 = np.where((data.f - 3) == min(abs(data.f - 3)))
+            temp2 = np.where((data.f - 3) == -min(abs(data.f - 3)))
+            if len(temp1[0]):
+                fN = temp1[0][0]
+            elif len(temp2[0]):
+                fN = temp2[0][0]
+            else:
+                print("no found")
+            f0_seq = (f_seq_array[:, 0:fN])
+            f0_seq1 = (f_seq_array1[:, 0:fN])
+            if len(f0_seq) < max(len(self.y_sequence),len(self.x_sequence)):
+                f0_seq = np.vstack((f0_seq, np.zeros((len(self.y_sequence) * len(self.x_sequence) - len(f0_seq), f0_seq.shape[1]))))
+                f0_seq1 = np.vstack((f0_seq1, np.zeros((len(self.y_sequence) * len(self.x_sequence) - len(f0_seq1), f0_seq1.shape[1]))))
+            theta = self.y_sequence if self.xRange == 1 else self.x_sequence
+            freq = data.f[0:fN]
+            X, Y = np.meshgrid(theta, freq)
+            im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_seq.T), shading='nearest', cmap='gist_heat')
+            cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
+            cbar = self.canvas3.fig.colorbar(im, cax=cax)
+            self.canvas3.ax1.set_title('Amplitude Diagram')
+            self.canvas3.ax1.set_xlabel('scanXPos(deg)')
+            self.canvas3.ax1.set_ylabel('freqency(THz)')
+            self.canvas3.ax1.set_aspect('equal')
+            self.canvas3.ax1.minorticks_on()
+            im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_seq1.T), shading='nearest', cmap='jet')
+            cax1 = self.canvas4.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas4.ax1.transAxes)
+            cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1)
+            self.canvas4.ax1.set_title('Phase Diagram')
+            self.canvas4.ax1.set_xlabel('scanXPos(deg)')
+            self.canvas4.ax1.set_ylabel('freqency(THz)')
+            self.canvas4.ax1.set_aspect('equal')
+            self.canvas4.ax1.minorticks_on()
 
         self.canvas.ax1.xaxis.grid()
         self.canvas.ax1.yaxis.grid()
@@ -790,18 +957,35 @@ class linerscan(QWidget, Ui_Form1):
 
     def saveResult(self):
         if self.result:
-            # t = self.result[0]
-            # ts = self.result[1]
-            # f = self.result[2]
-            # fs = self.result[3]
-            # fp = [0 for i in range(len(t))]
-            # fsp = [0 for i in range(len(t))]
-            # fp[0:len(f)] = f
-            # fsp[0:len(fs)] = fs
-            # Sig = np.array([t, ts, fp, fsp])
+            openPath = readJson('userPath', self.confPath)
+            if os.path.exists(openPath):
+                pass
+            else:
+                openPath = self.bakPath
             Sig = np.array(self.result)
-            filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", os.getcwd())
-            np.savetxt(filedir + '\\' + self.filename, Sig, fmt='%.6f', delimiter='\t')
+            t = np.arange(0, self.length, 0.02).reshape([1, Sig.shape[1]])
+            Sig = np.concatenate((t, Sig), axis=0)
+            filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", openPath)
+            if self.xRange == 1 and self.yRange != 1 and not self.swFForNF.isChecked():
+                labelDeg = ['ts'] + [f'{i:.3f}' + 'deg' for i in self.y_sequence]
+                df = pd.DataFrame(Sig.T, columns=labelDeg)
+                df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.csv', index=False)
+            elif self.xRange != 1 and self.yRange == 1 and not self.swFForNF.isChecked():
+                labelDeg = ['ts'] + [f'{i:.3f}' + 'deg' for i in self.x_sequence]
+                df = pd.DataFrame(Sig.T, columns=labelDeg)
+                df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.csv', index=False)
+            elif self.swFForNF.isChecked():
+                labelMm = ['ts'] + ['[' + f'{j:.3f}'+ ',' +f'{i:.3f}'+']mm' for j in self.y_sequence for i in self.x_sequence]
+                df = pd.DataFrame(Sig.T, columns=labelMm)
+                df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.csv', index=False)
+            # header = '\t'.join(['Iter{}'.format(i + 1) for i in range(Sig.shape[0] - 1)]) + '\t' +'ts' '\n'
+            # with open(filedir + '\\' + self.filename, 'w') as f:
+            #     f.write(header)
+            #     np.savetxt(f, Sig.T, fmt="%.6f", delimiter='\t')
+            if filedir == openPath:
+                pass
+            else:
+                modifyJson("userPath", filedir, self.confPath)
         else:
             self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
 
@@ -869,18 +1053,21 @@ class linerscan(QWidget, Ui_Form1):
             pass
 
     def NForFFAssert(self):
-        if self.rbtnAxis12.isChecked():
-            self.axisGroup = [1, 2]
-            self.StrongBodyLabel_2.setText("Axis1 Motion (mm/deg)")
-            self.StrongBodyLabel.setText("Axis2 Motion (mm/deg)")
-        elif self.rbtnAxis34.isChecked():
-            self.axisGroup = [3, 4]
-            self.StrongBodyLabel_2.setText("Axis3 Motion (mm/deg)")
-            self.StrongBodyLabel.setText("Axis4 Motion (mm/deg)")
-        elif self.rbtnAxis56.isChecked():
-            self.axisGroup = [5, 6]
-            self.StrongBodyLabel_2.setText("Axis5 Motion (mm/deg)")
-            self.StrongBodyLabel.setText("Axis6 Motion (mm/deg)")
+        if self.swFForNF.isChecked():
+            self.spinXstart.setRange(-15,15)
+            self.spinXend.setRange(-15,15)
+            self.spinYstart.setRange(-15,15)
+            self.spinYend.setRange(-15,15)
+            self.dspinAbsPos1.setRange(-15,15)
+            self.dspinAbsPos2.setRange(-15,15)
+        else:
+            self.spinXstart.setRange(-99,99)
+            self.spinXend.setRange(-99,99)
+            self.spinYstart.setRange(-99,99)
+            self.spinYend.setRange(-99,99)
+            self.dspinAbsPos1.setRange(-99,99)
+            self.dspinAbsPos2.setRange(-99,99)
+
 
     def XstartAssert(self):
         self.x_start = self.spinXstart.value()
@@ -1232,7 +1419,7 @@ class Worker(QRunnable):
         axis[1].move(y_start)
         axis[1].step(-y_step)
 
-        self.data = DataPlot(delay.interval, n=8192)
+        self.data = DataPlot(delay.interval, n=2 ** math.ceil(math.log2(self.length / 0.02)))
         self.data.t = self.length
         self.data.f = 10
 
@@ -1343,4 +1530,53 @@ def main_task(delay, acquisition, IsOpenExtClock, channel):
     asyncio.run(task_exec(delay, acquisition))
     return np.mean(acquisition.buffer, axis=0)
 
+def readJson(key_name, json_path):
+    # 检查文件是否存在
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"文件 {json_path} 不存在。")
 
+        # 尝试读取JSON文件
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)  # 解析JSON文件为Python字典
+
+            # 检查键名是否存在
+            if key_name in data:
+                return data[key_name]  # 返回键对应的值
+            else:
+                raise KeyError(f"键 {key_name} 在JSON文件中不存在。")
+
+    except json.JSONDecodeError:
+        raise ValueError(f"文件 {json_path} 不是有效的JSON文件。")
+
+    except IOError:
+        raise IOError(f"读取文件 {json_path} 时发生错误。")
+
+def modifyJson(key_name, new_value, json_path):
+    # 检查文件是否存在
+    if not os.path.exists(json_path):
+        raise FileNotFoundError(f"文件 {json_path} 不存在。")
+
+        # 尝试读取JSON文件
+    try:
+        with open(json_path, 'r', encoding='utf-8') as f:
+            data = json.load(f)  # 解析JSON文件为Python字典
+
+        # 检查键名是否存在，如果不存在则可以选择添加或抛出异常
+        if key_name in data:
+            data[key_name] = new_value  # 修改键对应的值
+        else:
+            # 如果你想在键不存在时添加它，可以取消下一行的注释
+            # data[key_name] = new_value
+            raise KeyError(f"键 {key_name} 在JSON文件中不存在。")
+
+            # 将修改后的字典写回JSON文件
+        with open(json_path, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=4)
+        print(f"文件 {json_path} 修改成功。")
+
+    except json.JSONDecodeError:
+        raise ValueError(f"文件 {json_path} 不是有效的JSON文件。")
+
+    except IOError:
+        raise IOError(f"读取或写入文件 {json_path} 时发生错误。")
