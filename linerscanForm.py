@@ -1,5 +1,6 @@
 # coding:utf-8
 import os
+import random
 import time
 import json
 import pandas as pd
@@ -552,9 +553,21 @@ class linerscan(QWidget, Ui_Form1):
             )
 
     def qpdebug(self):
-        self.canvas1.ax1.clear()
-        self.canvas1.fig.tight_layout()
-        self.canvas1.draw()
+        im = self.canvas3.ax1.pcolormesh(np.array([[1,2,1],[1,2,4]]), shading='nearest', cmap='gist_heat',vmin=-180, vmax=180)
+        cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
+        cbar = self.canvas3.fig.colorbar(im, cax=cax,ticks=[-180,0,180])
+        self.canvas3.ax1.set_title('Amplitude Diagram')
+        self.canvas3.ax1.set_xlabel('scanXPos(mm)')
+        self.canvas3.ax1.set_ylabel('scanYPos(mm)')
+        self.canvas3.ax1.set_aspect('equal')
+        self.canvas3.ax1.minorticks_on()
+
+        self.canvas3.fig.tight_layout()
+        self.canvas3.draw()
+
+        # self.canvas1.ax1.clear()
+        # self.canvas1.fig.tight_layout()
+        # self.canvas1.draw()
 
     def startScan(self):
         # for j in range(5,5 + int(self.ypos.value())):
@@ -797,8 +810,9 @@ class linerscan(QWidget, Ui_Form1):
             self.canvas2.ax1.plot(data.f, np.unwrap(data.pha[-1][0:len(data.f)], period = 360) / 180 * np.pi)
             self.canvas2.ax1.set_ylabel("Phase(rad)")
 
+        # 近场
         if self.swFForNF.isChecked():
-            X, Y = np.meshgrid(self.x_sequence, self.y_sequence2)
+            X, Y = np.meshgrid(self.x_sequence, self.y_sequence)
             f_seq_array = 10 ** (data.amp[:,0:len(data.f)] / 20)
             f_seq_array1 = (data.pha[:,0:len(data.f)])
             temp1 = np.where((data.f-self.f0) == min(abs(data.f-self.f0)))
@@ -831,14 +845,15 @@ class linerscan(QWidget, Ui_Form1):
             self.canvas3.ax1.set_aspect('equal')
             self.canvas3.ax1.minorticks_on()
 
-            im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_plane1), shading='nearest', cmap='jet')
+            im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_plane1), shading='nearest', cmap='jet', vmin=-180, vmax=180)
             cax1 = self.canvas4.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas4.ax1.transAxes)
-            cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1)
+            cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1, ticks=[-180, 0, 180])
             self.canvas4.ax1.set_title('Phase Diagram')
             self.canvas4.ax1.set_xlabel('scanXPos(mm)')
             self.canvas4.ax1.set_ylabel('scanYPos(mm)')
             self.canvas4.ax1.set_aspect('equal')
             self.canvas4.ax1.minorticks_on()
+        #远场
         else:
             f_seq_array = 10 ** (data.amp[:, 0:len(data.f)] / 20)
             f_seq_array1 = (data.pha[:, 0:len(data.f)])
