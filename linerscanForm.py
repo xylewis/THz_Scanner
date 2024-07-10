@@ -1076,12 +1076,12 @@ class linerscan(QWidget, Ui_Form1):
             self.dspinAbsPos1.setRange(-15,15)
             self.dspinAbsPos2.setRange(-15,15)
         else:
-            self.spinXstart.setRange(-99,99)
-            self.spinXend.setRange(-99,99)
-            self.spinYstart.setRange(-99,99)
-            self.spinYend.setRange(-99,99)
-            self.dspinAbsPos1.setRange(-99,99)
-            self.dspinAbsPos2.setRange(-99,99)
+            self.spinXstart.setRange(-180,180)
+            self.spinXend.setRange(-180,180)
+            self.spinYstart.setRange(-180,180)
+            self.spinYend.setRange(-180,180)
+            self.dspinAbsPos1.setRange(-180,180)
+            self.dspinAbsPos2.setRange(-180,180)
 
 
     def XstartAssert(self):
@@ -1402,110 +1402,167 @@ class Worker(QRunnable):
     @pyqtSlot()
     def run(self):
         global STOP
-        control = Zmotion(self.motion)
-        axis = [Axis(control.handle, i) for i in self.axisGroup]
-        if self.delay == "127.0.0.1":
-            delay = DelayControl(self.delay, 5002)
-        else:
-            delay = DelayControl(self.delay)
-        acquisition = DataCollection(self.device)
-        print('dev')
-        # Delay line set
-        delay.offset = self.offset  # Sampling Offset (ps)
-        delay.length = self.length  # Sampling Length (ps)
-        delay.interval = 0.02  # Sampling Interval (ps)
-        delay.iteration = self.ave  # Iteration Average
-        f0 = self.f0
-        x_start = self.x_start
-        x_end =self.x_end
-        x_step =self.x_step
-        y_start = self.y_start
-        y_end =self.y_end
-        y_step =self.y_step
-        axis[0].speed = self.xspeed
-        axis[1].speed = self.yspeed
+        # far field
+        if self.x_start == self.x_end or self.y_start == self.y_end:
+            print("fd")
+            try:
+                control = Zmotion(self.motion)
+                axis = [Axis(control.handle, i) for i in self.axisGroup]
 
-        x_sequence = np.arange(self.x_start, self.x_end + self.x_step, self.x_step)
-        y_sequence = np.arange(self.y_start, self.y_end + self.y_step, self.y_step)
-        y_sequence2 = np.arange(self.y_end, self.y_start - self.y_step, -self.y_step)
+                if self.delay == "127.0.0.1":
+                    delay = DelayControl(self.delay, 5002)
+                else:
+                    delay = DelayControl(self.delay)
+                acquisition = DataCollection(self.device)
+            except:
+                print("dddd")
+                # createTopRightInfoBar('error','Error', 'Please check the connection of the device')
+            else:
+                print('dev')
+                # Delay line set
+                delay.offset = self.offset  # Sampling Offset (ps)
+                delay.length = self.length  # Sampling Length (ps)
+                delay.interval = 0.02  # Sampling Interval (ps)
+                delay.iteration = self.ave  # Iteration Average
+                f0 = self.f0
+                x_start = self.x_start
+                x_end =self.x_end
+                x_step =self.x_step
+                y_start = self.y_start
+                y_end =self.y_end
+                y_step =self.y_step
+                axis[0].speed = self.xspeed
+                axis[1].speed = self.yspeed
 
-        # Begin scan plane
-        axis[0].move(x_start)
-        axis[1].move(y_start)
-        axis[1].step(-y_step)
+                x_sequence = np.arange(self.x_start, self.x_end + self.x_step, self.x_step)
+                y_sequence = np.arange(self.y_start, self.y_end + self.y_step, self.y_step)
+                y_sequence2 = np.arange(self.y_end, self.y_start - self.y_step, -self.y_step)
 
-        self.data = DataPlot(delay.interval, n=2 ** math.ceil(math.log2(self.length / 0.02)))
-        self.data.t = self.length
-        self.data.f = 10
+                # Begin scan plane
+                axis[0].move(x_start)
+                axis[1].move(y_start)
+                self.progress_count += 1
 
-        print('init')
-        for j in range(len(y_sequence)):
-            self.signals.progress2.emit(self.progress_total)
-            axis[1].step(y_step)
-            axis[0].move(x_start)
-            for i in range(len(x_sequence)):
-                time.sleep(0.2)
-                if STOP is not True:
-                    while not all([ax.idle for ax in axis]):
+                self.data = DataPlot(delay.interval, n=2 ** math.ceil(math.log2(self.length / 0.02)))
+                self.data.t = self.length
+                self.data.f = 10
+
+                print('init')
+                for i in range(max(len(x_sequence), len(y_sequence))-1):
+                    self.signals.progress2.emit(self.progress_total)
+                    time.sleep(0.2 + self.length / 2000)
+                    if STOP is not True:
+                        while not all([ax.idle for ax in axis]):
+                            if STOP is not True:
+                                time.sleep(1)
+                            else:
+                                break
                         if STOP is not True:
-                            time.sleep(1)
+                            self.signals.youCanStop.emit()
+                            print('single')
+                            self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock, self.channel)
+                            self.signals.axIdle.emit(self.axIndex[0],self.axIndex[1])
+                            self.data.mat.append(self.data_buffer)
+                            self.data.fft()
+                            self.signals.render_iter.emit(self.data)
+                            self.signals.progress.emit(self.progress_count)
+                            self.progress_count += 1
+
+                            if len(x_sequence) == 1:
+                                axis[1].step(y_step)
+                            elif len(y_sequence) == 1:
+                                axis[0].step(x_step)
+                    else:
+                        break
+                if STOP is not True:
+                    self.result=self.data
+                    self.signals.result.emit(self.result)
+                    print('DONE')
+                else:
+                    self.signals.stop.emit()
+            pass
+        else:
+            print("fd")
+            try:
+                control = Zmotion(self.motion)
+                axis = [Axis(control.handle, i) for i in self.axisGroup]
+
+                if self.delay == "127.0.0.1":
+                    delay = DelayControl(self.delay, 5002)
+                else:
+                    delay = DelayControl(self.delay)
+                acquisition = DataCollection(self.device)
+            except:
+                print("dddd")
+                # createTopRightInfoBar('error','Error', 'Please check the connection of the device')
+            else:
+                print('dev')
+                # Delay line set
+                delay.offset = self.offset  # Sampling Offset (ps)
+                delay.length = self.length  # Sampling Length (ps)
+                delay.interval = 0.02  # Sampling Interval (ps)
+                delay.iteration = self.ave  # Iteration Average
+                f0 = self.f0
+                x_start = self.x_start
+                x_end = self.x_end
+                x_step = self.x_step
+                y_start = self.y_start
+                y_end = self.y_end
+                y_step = self.y_step
+                axis[0].speed = self.xspeed
+                axis[1].speed = self.yspeed
+
+                x_sequence = np.arange(self.x_start, self.x_end + self.x_step, self.x_step)
+                y_sequence = np.arange(self.y_start, self.y_end + self.y_step, self.y_step)
+                y_sequence2 = np.arange(self.y_end, self.y_start - self.y_step, -self.y_step)
+
+                # Begin scan plane
+                axis[0].move(x_start)
+                axis[1].move(y_start)
+                axis[1].step(-y_step)
+
+                self.data = DataPlot(delay.interval, n=2 ** math.ceil(math.log2(self.length / 0.02)))
+                self.data.t = self.length
+                self.data.f = 10
+
+                print('init')
+                for j in range(len(y_sequence)):
+                    self.signals.progress2.emit(self.progress_total)
+                    axis[1].step(y_step)
+                    axis[0].move(x_start)
+                    for i in range(len(x_sequence)):
+                        time.sleep(0.2 + self.length / 2000)
+                        if STOP is not True:
+                            while not all([ax.idle for ax in axis]):
+                                if STOP is not True:
+                                    time.sleep(1)
+                                else:
+                                    break
+                            if STOP is not True:
+                                self.signals.youCanStop.emit()
+                                self.axIndex = [i, j]
+                                print('single')
+                                self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock, self.channel)
+                                self.signals.axIdle.emit(self.axIndex[0], self.axIndex[1])
+                                self.data.mat.append(self.data_buffer)
+                                self.data.fft()
+                                self.signals.render_iter.emit(self.data)
+                                self.signals.progress.emit(self.progress_count)
+                                self.progress_count += 1
+
+                                # self.result = [scan.data.t, scan.data.mat[-1][0:len(scan.data.t)],
+                                #                scan.data.f, scan.data.amp[-1][0:len(scan.data.f)]]
+                                # self.signals.result.emit(self.result)
+                                axis[0].step(x_step)
                         else:
                             break
-                    if STOP is not True:
-                        self.signals.youCanStop.emit()
-                        self.axIndex = [i,j]
-                        print('single')
-                        self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock, self.channel)
-                        self.signals.axIdle.emit(self.axIndex[0],self.axIndex[1])
-                        self.data.mat.append(self.data_buffer)
-                        self.data.fft()
-                        self.signals.render_iter.emit(self.data)
-                        self.signals.progress.emit(self.progress_count)
-                        self.progress_count += 1
-
-                        # self.result = [scan.data.t, scan.data.mat[-1][0:len(scan.data.t)],
-                        #                scan.data.f, scan.data.amp[-1][0:len(scan.data.f)]]
-                        # self.signals.result.emit(self.result)
-                        axis[0].step(x_step)
+                if STOP is not True:
+                    self.result = self.data
+                    self.signals.result.emit(self.result)
+                    print('DONE')
                 else:
-                    break
-        if STOP is not True:
-            self.result=self.data
-            self.signals.result.emit(self.result)
-            print('DONE')
-        else:
-            self.signals.stop.emit()
-
-        # for n in range(0, self.iter):
-        #     self.signals.progress2.emit(self.progress_total)
-        #     self.signals.youCanStop.emit()
-        #     if STOP is not True:
-        #         self.data_buffer = main_task(delay, acquisition)
-        #         self.signals.render_ave.emit(self.data_buffer)
-        #         self.signals.progress.emit(self.progress_count)
-        #         if self.progress_total > 100 and self.progress_count % 10 == 0:
-        #             np.savetxt(os.path.abspath('.') + '\\.temp' + f"/{self.progress_count / 10}.txt",
-        #                        self.data_buffer,
-        #                        fmt="%.6f")
-        #         self.progress_count += self.ave
-        #     else:
-        #         break
-        #     if STOP is not True:
-        #         # scan.data.mat.append(np.mean(np.array(self.data_buffer), axis=0))
-        #         # scan.data.fft()
-        #         # self.data = scan.data
-        #         # self.signals.render_iter.emit(self.data)
-        #         # self.result = [scan.data.t, scan.data.mat[-1][0:len(scan.data.t)],
-        #         #                scan.data.f, scan.data.amp[-1][0:len(scan.data.f)]]
-        #         # self.signals.result.emit(self.result)
-        #         self.read_count = 1
-        #         # self.data_buffer = []
-        #     else:
-        #         break
-        # if STOP is True:
-        #     self.read_count = 1
-        #     self.data_buffer = []
-        #     self.signals.stop.emit()
+                    self.signals.stop.emit()
+            pass
 
 
 async def task_init(delay: DelayControl, acquisition: DataCollection, IsOpenExtClock, channel):
