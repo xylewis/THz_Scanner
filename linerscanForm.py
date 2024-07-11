@@ -1441,14 +1441,14 @@ class Worker(QRunnable):
                 # Begin scan plane
                 axis[0].move(x_start)
                 axis[1].move(y_start)
-                self.progress_count += 1
+                self.progress_count += 0
 
                 self.data = DataPlot(delay.interval, n=2 ** math.ceil(math.log2(self.length / 0.02)))
                 self.data.t = self.length
                 self.data.f = 10
 
                 print('init')
-                for i in range(max(len(x_sequence), len(y_sequence))-1):
+                for i in range(max(len(x_sequence), len(y_sequence))):
                     self.signals.progress2.emit(self.progress_total)
                     time.sleep(0.2 + self.length / 2000)
                     if STOP is not True:
@@ -1468,10 +1468,11 @@ class Worker(QRunnable):
                             self.signals.progress.emit(self.progress_count)
                             self.progress_count += 1
 
-                            if len(x_sequence) == 1:
-                                axis[1].step(y_step)
-                            elif len(y_sequence) == 1:
-                                axis[0].step(x_step)
+                            if i != range(max(len(x_sequence), len(y_sequence)))[-1]:
+                                if len(x_sequence) == 1:
+                                    axis[1].step(y_step)
+                                elif len(y_sequence) == 1:
+                                    axis[0].step(x_step)
                     else:
                         break
                 if STOP is not True:
