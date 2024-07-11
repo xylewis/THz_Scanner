@@ -119,9 +119,13 @@ class linerscan(QWidget, Ui_Form1):
         self.spinXstart.setValue(self.x_start)
         self.spinXend.setValue(self.x_end)
         self.spinXstep.setValue(self.x_step)
+        self.spinXstep.setMaximum(99)
+        self.spinXstep.setMinimum(-99)
         self.spinYstart.setValue(self.y_start)
         self.spinYend.setValue(self.y_end)
         self.spinYstep.setValue(self.y_step)
+        self.spinYstep.setMaximum(99)
+        self.spinYstep.setMinimum(-99)
         self.dspinXspeed.setValue(self.x_speed)
         self.dspinXspeed.setMaximum(3.0)
         self.dspinYspeed.setValue(self.y_speed)
@@ -1089,13 +1093,23 @@ class linerscan(QWidget, Ui_Form1):
     def XendAssert(self):
         self.x_end = self.spinXend.value()
     def XstepAssert(self):
-        self.x_step = self.spinXstep.value()
+        if self.spinXstep.value() != 0:
+            self.x_step = self.spinXstep.value()
+        else:
+            self.x_step = 0.001
+            self.spinXstep.setValue(0.001)
+            self.createTopRightInfoBar('warning','Warning', 'Illegal input format')
     def YstartAssert(self):
         self.y_start = self.spinYstart.value()
     def YendAssert(self):
         self.y_end = self.spinYend.value()
     def YstepAssert(self):
-        self.y_step = self.spinYstep.value()
+        if self.spinYstep.value() != 0:
+            self.y_step = self.spinYstep.value()
+        else:
+            self.y_step = 0.001
+            self.spinYstep.setValue(0.001)
+            self.createTopRightInfoBar('warning','Warning', 'Illegal input format')
     def XspeedAssert(self):
         try:
             self.x_speed = self.dspinXspeed.value()
