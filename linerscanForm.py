@@ -341,7 +341,10 @@ class linerscan(QWidget, Ui_Form1):
         except:
             self.createTopRightInfoBar('error','Error', 'Please check the connection of the device')
         else:
-            self.createTopRightInfoBar('success',"Info", "AxisGroup"+str(self.axisGroup)+"Link Success")
+            if self.swFForNF.isChecked():
+                self.createTopRightInfoBar('success',"Info", "AxisGroup"+str(self.axisGroup)+" Link Success"+"\n"+"Toggle to near-field")
+            else:
+                self.createTopRightInfoBar('success',"Info", "AxisGroup"+str(self.axisGroup)+" Link Success"+"\n"+"Toggle to far-field, this mode only supports 1D scanning")
             self.SimpleCardWidget_7.setEnabled(True)
             self.SimpleCardWidget_8.setEnabled(True)
             self.timer.start(1000)
@@ -557,21 +560,41 @@ class linerscan(QWidget, Ui_Form1):
             )
 
     def qpdebug(self):
-        im = self.canvas3.ax1.pcolormesh(np.array([[1,2,1],[1,2,4]]), shading='nearest', cmap='gist_heat',vmin=-180, vmax=180)
-        cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
-        cbar = self.canvas3.fig.colorbar(im, cax=cax,ticks=[-180,0,180])
-        self.canvas3.ax1.set_title('Amplitude Diagram')
-        self.canvas3.ax1.set_xlabel('scanXPos(mm)')
-        self.canvas3.ax1.set_ylabel('scanYPos(mm)')
-        self.canvas3.ax1.set_aspect('equal')
-        self.canvas3.ax1.minorticks_on()
+        arr = np.loadtxt("C:\\Users\\Public\\LUX\\test1.csv", delimiter=",", dtype=str)
+        arr1 = arr[1:5001, 1:72].astype(float).T
 
+        data = DataPlot(0.02, n=2 ** math.ceil(math.log2(100 / 0.02)))
+        data.t = 100
+        data.f = 10
+
+        data.mat = arr1
+        row_means = np.mean(data.mat, axis=1)
+        row_means_expanded = np.repeat(row_means[:, np.newaxis], data.mat.shape[1], axis=1)
+        data.mat = data.mat - row_means_expanded
+        data.fft()
+
+        f_seq_array = 10 ** (data.amp[:, 0:len(data.f)] / 20)
+        f_seq_array1 = (data.pha[:, 0:len(data.f)])
+        index = np.where((data.f > 0.1) & (data.f < 3))[0]
+        f0_seq = (f_seq_array[:, index])
+        f0_seq1 = (f_seq_array1[:, index])
+
+        # theta = self.y_sequence if self.xRange == 1 else self.x_sequence
+        theta = np.arange(f0_seq.shape[0])
+        freq = data.f[index]
+        X, Y = np.meshgrid(theta, freq)
+        im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_seq.T) ** 2, shading='nearest', cmap='jet')
+        cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
+        cbar = self.canvas3.fig.colorbar(im, cax=cax)
+        self.canvas3.ax1.set_title('Amplitude Diagram')
+        self.canvas3.ax1.set_xlabel('angle(deg)')
+        self.canvas3.ax1.set_ylabel('frequency(THz)')
+        # self.canvas3.ax1.set_aspect('equal')
+        self.canvas3.ax1.minorticks_on()
+        #
         self.canvas3.fig.tight_layout()
         self.canvas3.draw()
 
-        # self.canvas1.ax1.clear()
-        # self.canvas1.fig.tight_layout()
-        # self.canvas1.draw()
 
     def startScan(self):
         # for j in range(5,5 + int(self.ypos.value())):
@@ -836,9 +859,6 @@ class linerscan(QWidget, Ui_Form1):
 
             f0_plane = f0_seq.reshape(len(self.y_sequence), len(self.x_sequence))
             f0_plane1 = f0_seq1.reshape(len(self.y_sequence), len(self.x_sequence))
-            if len(f0_seq) == len(self.y_sequence) * len(self.x_sequence):
-                np.savetxt('幅值场图.txt',f0_plane)
-                np.savetxt('相位场图.txt',f0_plane1)
 
             im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_plane), shading='nearest', cmap='gist_heat')
             cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
@@ -861,37 +881,28 @@ class linerscan(QWidget, Ui_Form1):
         else:
             f_seq_array = 10 ** (data.amp[:, 0:len(data.f)] / 20)
             f_seq_array1 = (data.pha[:, 0:len(data.f)])
-            temp1 = np.where((data.f - 3) == min(abs(data.f - 3)))
-            temp2 = np.where((data.f - 3) == -min(abs(data.f - 3)))
-            if len(temp1[0]):
-                fN = temp1[0][0]
-            elif len(temp2[0]):
-                fN = temp2[0][0]
-            else:
-                print("no found")
-            f0_seq = (f_seq_array[:, 0:fN])
-            f0_seq1 = (f_seq_array1[:, 0:fN])
+            index = np.where((data.f > 0.1) & (data.f < 3))[0]
+            f0_seq = (f_seq_array[:, index])
+            f0_seq1 = (f_seq_array1[:, index])
             if len(f0_seq) < max(len(self.y_sequence),len(self.x_sequence)):
                 f0_seq = np.vstack((f0_seq, np.zeros((len(self.y_sequence) * len(self.x_sequence) - len(f0_seq), f0_seq.shape[1]))))
                 f0_seq1 = np.vstack((f0_seq1, np.zeros((len(self.y_sequence) * len(self.x_sequence) - len(f0_seq1), f0_seq1.shape[1]))))
             theta = self.y_sequence if self.xRange == 1 else self.x_sequence
-            freq = data.f[0:fN]
+            freq = data.f[index]
             X, Y = np.meshgrid(theta, freq)
-            im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_seq.T), shading='nearest', cmap='gist_heat')
+            im = self.canvas3.ax1.pcolormesh(X, Y, np.abs(f0_seq.T) ** 2, shading='nearest', cmap='gist_heat')
             cax = self.canvas3.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas3.ax1.transAxes)
             cbar = self.canvas3.fig.colorbar(im, cax=cax)
             self.canvas3.ax1.set_title('Amplitude Diagram')
-            self.canvas3.ax1.set_xlabel('scanXPos(deg)')
+            self.canvas3.ax1.set_xlabel('angle(deg)')
             self.canvas3.ax1.set_ylabel('freqency(THz)')
-            self.canvas3.ax1.set_aspect('equal')
             self.canvas3.ax1.minorticks_on()
-            im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_seq1.T), shading='nearest', cmap='jet')
+            im1 = self.canvas4.ax1.pcolormesh(X, Y, np.abs(f0_seq1.T), shading='nearest', cmap='jet', vmin=-180, vmax=180)
             cax1 = self.canvas4.ax1.inset_axes([1.04, 0, 0.04, 1], transform=self.canvas4.ax1.transAxes)
-            cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1)
+            cbar1 = self.canvas4.fig.colorbar(im1, cax=cax1, ticks=[-180, 0, 180])
             self.canvas4.ax1.set_title('Phase Diagram')
-            self.canvas4.ax1.set_xlabel('scanXPos(deg)')
+            self.canvas4.ax1.set_xlabel('angle(deg)')
             self.canvas4.ax1.set_ylabel('freqency(THz)')
-            self.canvas4.ax1.set_aspect('equal')
             self.canvas4.ax1.minorticks_on()
 
         self.canvas.ax1.xaxis.grid()
@@ -1475,6 +1486,7 @@ class Worker(QRunnable):
                             self.signals.youCanStop.emit()
                             print('single')
                             self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock, self.channel)
+                            self.data_buffer -= np.mean(self.data_buffer)
                             self.signals.axIdle.emit(self.axIndex[0],self.axIndex[1])
                             self.data.mat.append(self.data_buffer)
                             self.data.fft()
@@ -1496,8 +1508,9 @@ class Worker(QRunnable):
                 else:
                     self.signals.stop.emit()
             pass
+        # 近场
         else:
-            print("fd")
+            print("nd")
             try:
                 control = Zmotion(self.motion)
                 axis = [Axis(control.handle, i) for i in self.axisGroup]

@@ -38,8 +38,8 @@ class staff(QWidget, Ui_Form2):
         except:
             self.createBOTTOMInfoBar('error', 'Error', 'Please check the connection of the device')
         else:
-            self.lineTemp.setText(str(self.sensorData[0]/10 )  + str(' ℃'))
-            self.lineHumi.setText(str(self.sensorData[1]/10 ) + str(' %'))
+            self.lineTemp.setText(str(self.sensorData[1]/10 )  + str(' ℃'))
+            self.lineHumi.setText(str(self.sensorData[0]/10 ) + str(' %'))
 
         self.powerOn = False
         self.secondCnt = 0
@@ -146,8 +146,8 @@ class staff(QWidget, Ui_Form2):
             self.powerOn = False
 
         self.sensorData = self.sys_module["sensor"].status
-        self.lineTemp.setText(str(self.sensorData[0] / 10) + str(' ℃'))
-        self.lineHumi.setText(str(self.sensorData[1] / 10) + str(' %'))
+        self.lineTemp.setText(str(self.sensorData[1] / 10) + str(' ℃'))
+        self.lineHumi.setText(str(self.sensorData[0] / 10) + str(' %'))
 
     def createBOTTOMInfoBar(self, infoClass, title, text):
         if infoClass == 'warning':
