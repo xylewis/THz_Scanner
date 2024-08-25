@@ -595,6 +595,19 @@ class linerscan(QWidget, Ui_Form1):
         self.canvas3.fig.tight_layout()
         self.canvas3.draw()
 
+        openPath = readJson('userPath', self.confPath)
+        if os.path.exists(openPath):
+            pass
+        else:
+            openPath = self.bakPath
+        # filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", openPath)
+        # filedir = QFileDialog.getSaveFileName()
+        filedir, _ = QFileDialog.getSaveFileName(self, "请键入文件名", "", "All Files (*)", openPath)
+        self.canvas3.fig.savefig(filedir+ "-2D-P.png")
+        if filedir == openPath:
+            pass
+        else:
+            modifyJson("userPath", os.path.dirname(filedir), self.confPath)
 
     def startScan(self):
         # for j in range(5,5 + int(self.ypos.value())):
@@ -928,7 +941,7 @@ class linerscan(QWidget, Ui_Form1):
         self.xylim2 = [self.canvas2.ax1.get_xlim(),self.canvas2.ax1.get_ylim()]
 
         if self.xRange * self.yRange == len(data.mat):
-            self.result = data.mat
+            self.result = [data.mat, f0_plane, f0_plane1]
             self.filename = time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt"
             np.savetxt(
                 os.path.abspath('.') + '\\.temp' + '/' + self.filename,
@@ -992,30 +1005,34 @@ class linerscan(QWidget, Ui_Form1):
                 pass
             else:
                 openPath = self.bakPath
-            Sig = np.array(self.result)
+            Sig = np.array(self.result[0])
+            Mag = self.result[1]
+            Pha = self.result[2]
             t = np.arange(0, self.length, 0.02).reshape([1, Sig.shape[1]])
             Sig = np.concatenate((t, Sig), axis=0)
-            filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", openPath)
-            if self.xRange == 1 and self.yRange != 1 and not self.swFForNF.isChecked():
-                labelDeg = ['ts'] + [f'{i:.3f}' + 'deg' for i in self.y_sequence]
-                df = pd.DataFrame(Sig.T, columns=labelDeg)
-                df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.csv', index=False)
-            elif self.xRange != 1 and self.yRange == 1 and not self.swFForNF.isChecked():
-                labelDeg = ['ts'] + [f'{i:.3f}' + 'deg' for i in self.x_sequence]
-                df = pd.DataFrame(Sig.T, columns=labelDeg)
-                df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.csv', index=False)
-            elif self.swFForNF.isChecked():
-                labelMm = ['ts'] + ['[' + f'{j:.3f}'+ ',' +f'{i:.3f}'+']mm' for j in self.y_sequence for i in self.x_sequence]
-                df = pd.DataFrame(Sig.T, columns=labelMm)
-                df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.csv', index=False)
-            # header = '\t'.join(['Iter{}'.format(i + 1) for i in range(Sig.shape[0] - 1)]) + '\t' +'ts' '\n'
-            # with open(filedir + '\\' + self.filename, 'w') as f:
-            #     f.write(header)
-            #     np.savetxt(f, Sig.T, fmt="%.6f", delimiter='\t')
-            if filedir == openPath:
-                pass
-            else:
-                modifyJson("userPath", filedir, self.confPath)
+            filedir, _ = QFileDialog.getSaveFileName(self, "请键入文件名", "", "All Files (*)", openPath)
+            if filedir:
+                self.canvas.fig.savefig(filedir + "-figTim.png")
+                self.canvas3.fig.savefig(filedir + "-figMag.png")
+                self.canvas4.fig.savefig(filedir + "-figPha.png")
+                np.savetxt(filedir + '-2D-M.txt',Mag, delimiter='\t', fmt="%.6f")
+                np.savetxt(filedir + '-2D-P.txt',Pha, delimiter='\t', fmt="%.6f")
+                if self.xRange == 1 and self.yRange != 1 and not self.swFForNF.isChecked():
+                    labelDeg = ['ts'] + [f'{i:.3f}' + 'deg' for i in self.y_sequence]
+                    df = pd.DataFrame(Sig.T, columns=labelDeg)
+                    df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.txt', seq='\t', index=False)
+                elif self.xRange != 1 and self.yRange == 1 and not self.swFForNF.isChecked():
+                    labelDeg = ['ts'] + [f'{i:.3f}' + 'deg' for i in self.x_sequence]
+                    df = pd.DataFrame(Sig.T, columns=labelDeg)
+                    df.to_csv(filedir + '\\' + self.filename.split('.')[0] + '.txt', seq='\t', index=False)
+                elif self.swFForNF.isChecked():
+                    labelMm = ['ts'] + ['[' + f'{j:.3f}'+ ',' +f'{i:.3f}'+']mm' for j in self.y_sequence for i in self.x_sequence]
+                    df = pd.DataFrame(Sig.T, columns=labelMm)
+                    df.to_csv(filedir + '-2D-T.txt', sep='\t' , index=False, float_format='%.6f')
+                if filedir == openPath:
+                    pass
+                else:
+                    modifyJson("userPath", os.path.dirname(filedir), self.confPath)
         else:
             self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
 

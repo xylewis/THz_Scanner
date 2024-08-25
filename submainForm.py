@@ -3,6 +3,7 @@ import os
 import time
 import json
 import math
+import pandas as pd
 
 import numpy as np
 from PyQt5.QtCore import Qt, pyqtSignal, QUrl
@@ -393,7 +394,7 @@ class submain(QWidget, Ui_Form):
         self.xylim2 = [self.canvas2.ax1.get_xlim(),self.canvas2.ax1.get_ylim()]
 
         if self.iter == len(data.mat):
-            self.result = data.mat
+            self.result = [data.mat, data.f, 10 ** (data.amp[-1][0:len(data.f)] / 20), np.unwrap(data.pha[-1][0:len(data.f)], period = 360) / 180 * np.pi]
             self.filename = time.strftime("%Y%m%d_%H%M", time.localtime()) + ".txt"
             np.savetxt(
                 os.path.abspath('.') + '\\.temp' + '/' + self.filename,
@@ -437,18 +438,31 @@ class submain(QWidget, Ui_Form):
                 pass
             else:
                 openPath = self.bakPath
-            Sig = np.array(self.result)
+            Sig = np.array(self.result[0])
+            f = self.result[1][np.newaxis, :]
+            Mag = self.result[2][np.newaxis, :]
+            Pha = self.result[3][np.newaxis, :]
             t = np.arange(0, self.length, 0.02).reshape([1, Sig.shape[1]])
+            # f = np.arange(0, 10, 1 / 0.02 / (2 ** math.ceil(math.log2(self.length / 0.02))))
             Sig = np.concatenate((t, Sig), axis=0)
-            filedir = QFileDialog.getExistingDirectory(self, "选择输出目录文件", openPath)
-            header = 'ts' +'\t'+ '\t'.join(['Iter{}'.format(i + 1) for i in range(Sig.shape[0] - 1)]) + '\n'
-            with open(filedir + '\\' + self.filename, 'w') as f:
-                f.write(header)
-                np.savetxt(f, Sig.T, fmt="%.6f", delimiter='\t')
-            if filedir == openPath:
-                pass
-            else:
-                modifyJson("userPath", filedir, 'config.json')
+            Mag = np.concatenate((f, Mag), axis=0)
+            Pha = np.concatenate((f, Pha), axis=0)
+            filedir, _ = QFileDialog.getSaveFileName(self, "请键入文件名", "", "All Files (*)", openPath)
+            if filedir:
+                labelMag = ['f'] + ['Mag(a.u)']
+                df = pd.DataFrame(Mag.T, columns=labelMag)
+                df.to_csv(filedir + '-M.txt', sep='\t', index=False, float_format='%.6f')
+                labelPha = ['f'] + ['Pha(rad)']
+                df = pd.DataFrame(Mag.T, columns=labelPha)
+                df.to_csv(filedir + '-P.txt', sep='\t', index=False, float_format='%.6f')
+                header = 'ts' +'\t'+ '\t'.join(['Iter{}'.format(i + 1) for i in range(Sig.shape[0] - 1)]) + '\n'
+                with open(filedir + '-T.txt', 'w') as f:
+                    f.write(header)
+                    np.savetxt(f, Sig.T, fmt="%.6f", delimiter='\t')
+                if filedir == openPath:
+                    pass
+                else:
+                    modifyJson("userPath", os.path.dirname(filedir), 'config.json')
         else:
             self.createTopRightInfoBar('warning','Warning', 'Please scan first or wait for the scan to complete(>_<)')
 
@@ -850,7 +864,7 @@ class Worker(QRunnable):
             self.signals.youCanStop.emit()
             if STOP is not True:
 
-                time.sleep(0.2)
+                time.sleep(0.2+ self.length / 2000)
                 # print(self.data.mat)
                 self.data_buffer = main_task(delay, acquisition, self.IsOpenExtClock, self.channel)
                 self.data.mat.append(self.data_buffer)
